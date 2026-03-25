@@ -1,6 +1,6 @@
-### ERPNext Checker
+### ERPNext Assignment Portal
 
-Auto-checker for ERPNext course assignments
+Assignment portal for ERPNext course grading
 
 ### Installation
 
@@ -9,7 +9,7 @@ You can install this app using the [bench](https://github.com/frappe/bench) CLI:
 ```bash
 cd $PATH_TO_YOUR_BENCH
 bench get-app $URL_OF_THIS_REPO --branch develop
-bench install-app erpnext_checker
+bench install-app erpnext_assignment_portal
 ```
 
 ### Contributing
@@ -17,7 +17,7 @@ bench install-app erpnext_checker
 This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
 
 ```bash
-cd apps/erpnext_checker
+cd apps/erpnext_assignment_portal
 pre-commit install
 ```
 

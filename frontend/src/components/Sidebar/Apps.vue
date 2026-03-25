@@ -1,0 +1,65 @@
+<template>
+	<Popover placement="right-start" trigger="hover" class="flex w-full">
+		<template #target>
+			<button
+				class="group w-full flex h-7 items-center justify-between rounded px-2 text-base text-ink-gray-7 hover:bg-surface-gray-2"
+			>
+				<div class="flex gap-2">
+					<LayoutGrid class="size-4 stroke-1.5" />
+					<span class="whitespace-nowrap">
+						Apps
+					</span>
+				</div>
+				<ChevronRight class="h-4 w-4 stroke-1.5" />
+			</button>
+		</template>
+		<template #body>
+			<div
+				class="grid grid-cols-3 justify-between mx-3 p-2 rounded-lg bg-surface-modal shadow-2xl ring-1 ring-black ring-opacity-5"
+			>
+				<div v-for="app in apps.data" :key="app.name">
+					<a
+						:href="app.route"
+						class="flex flex-col gap-1.5 rounded justify-center items-center py-2 px-3 hover:bg-surface-gray-2"
+					>
+						<img class="size-8" :src="app.logo" />
+						<div class="text-sm text-ink-gray-7">
+							{{ app.title }}
+						</div>
+					</a>
+				</div>
+			</div>
+		</template>
+	</Popover>
+</template>
+
+<script setup>
+import { Popover, createResource } from "frappe-ui"
+import { LayoutGrid, ChevronRight } from "lucide-vue-next"
+
+const apps = createResource({
+	url: "frappe.apps.get_apps",
+	cache: "apps",
+	auto: true,
+	transform: (data) => {
+		let _apps = [
+			{
+				name: "frappe",
+				logo: "/assets/frappe/images/frappe-framework-logo.svg",
+				title: "Desk",
+				route: "/app",
+			},
+		]
+		data.forEach((app) => {
+			if (app.name === "erpnext_assignment_portal") return
+			_apps.push({
+				name: app.name,
+				logo: app.logo,
+				title: app.title,
+				route: app.route,
+			})
+		})
+		return _apps
+	},
+})
+</script>

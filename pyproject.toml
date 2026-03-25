@@ -1,9 +1,9 @@
 [project]
-name = "erpnext_checker"
+name = "erpnext_assignment_portal"
 authors = [
     { name = "Frappe School", email = "school@frappe.io"}
 ]
-description = "Auto-checker for ERPNext course assignments"
+description = "Assignment portal for ERPNext course grading"
 requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]
