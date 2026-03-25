@@ -6,7 +6,6 @@
 				Your ERPNext assignment progress.
 			</p>
 
-			<!-- Connection status -->
 			<div v-if="sites.data?.length" class="mb-8">
 				<div
 					v-for="site in sites.data"
@@ -55,7 +54,6 @@
 				</div>
 			</div>
 
-			<!-- Day cards with results -->
 			<h3 class="text-lg font-semibold text-ink-gray-9 mb-4">
 				Assignments
 			</h3>
@@ -137,7 +135,6 @@
 								</span>
 							</div>
 						</div>
-						<!-- Score bar -->
 						<div
 							v-if="myResultsMap[`Day ${day.num}`]"
 							class="mt-3"
@@ -161,7 +158,6 @@
 						</div>
 					</router-link>
 
-					<!-- Expandable details for previous results -->
 					<div
 						v-if="myResultsMap[`Day ${day.num}`]"
 						class="border-t border-outline-gray-1"

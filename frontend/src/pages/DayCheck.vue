@@ -1,11 +1,10 @@
 <template>
   <AppLayout>
     <div class="p-8 max-w-4xl">
-      <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h2 class="text-2xl font-bold text-gray-900">Day {{ dayNum }}</h2>
-          <p class="text-gray-500">{{ dayInfo.desc }}</p>
+          <h2 class="text-2xl font-bold text-ink-gray-9">Day {{ dayNum }}</h2>
+          <p class="text-ink-gray-5">{{ dayInfo.desc }}</p>
         </div>
         <Button
           variant="solid"
@@ -17,12 +16,11 @@
         </Button>
       </div>
 
-      <!-- Site selector -->
       <div v-if="sites.data?.length" class="mb-6">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Select your ERPNext site</label>
+        <label class="block text-sm font-medium text-ink-gray-7 mb-1">Select your ERPNext site</label>
         <select
           v-model="selectedSite"
-          class="w-full max-w-md border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+          class="w-full max-w-md border border-outline-gray-2 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
         >
           <option value="">Choose a site...</option>
           <option v-for="site in sites.data" :key="site.name" :value="site.name">
@@ -37,7 +35,6 @@
         </p>
       </div>
 
-      <!-- Error -->
       <div v-if="error" class="mb-6 p-5 bg-red-50 border border-red-200 rounded-lg">
         <div class="flex items-start gap-3">
           <XCircle class="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
@@ -50,12 +47,11 @@
         </div>
       </div>
 
-      <!-- Score Summary -->
       <div v-if="results" class="mb-6">
-        <div class="p-5 bg-white rounded-lg border">
+        <div class="p-5 bg-surface-white rounded-lg border">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
-              <h3 class="text-lg font-semibold text-gray-900">Results</h3>
+              <h3 class="text-lg font-semibold text-ink-gray-9">Results</h3>
               <span
                 class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold"
                 :class="results.percentage === 100 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
@@ -80,16 +76,14 @@
         </div>
       </div>
 
-      <!-- Section Results -->
       <div v-if="results" class="space-y-3">
         <div
           v-for="section in sectionList"
           :key="section.name"
-          class="bg-white rounded-lg border overflow-hidden"
+          class="bg-surface-white rounded-lg border overflow-hidden"
         >
-          <!-- Section header -->
           <button
-            class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+            class="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-gray-2 transition-colors"
             @click="toggleSection(section.name)"
           >
             <div class="flex items-center gap-2.5">
@@ -98,22 +92,21 @@
                 class="w-5 h-5 text-green-500"
               />
               <XCircle v-else class="w-5 h-5 text-red-500" />
-              <span class="font-medium text-gray-900">{{ section.name }}</span>
+              <span class="font-medium text-ink-gray-9">{{ section.name }}</span>
             </div>
             <div class="flex items-center gap-3">
-              <span class="text-sm text-gray-500">{{ section.passed }}/{{ section.total }}</span>
+              <span class="text-sm text-ink-gray-5">{{ section.passed }}/{{ section.total }}</span>
               <ChevronDown
-                class="w-4 h-4 text-gray-400 transition-transform"
+                class="w-4 h-4 text-ink-gray-4 transition-transform"
                 :class="{ 'rotate-180': openSections[section.name] }"
               />
             </div>
           </button>
 
-          <!-- Section checks -->
           <div v-if="openSections[section.name]" class="border-t">
             <table class="w-full text-sm">
               <thead>
-                <tr class="bg-gray-50 text-gray-500">
+                <tr class="bg-surface-gray-2 text-ink-gray-5">
                   <th class="px-4 py-2 text-left w-8"></th>
                   <th class="px-4 py-2 text-left">Check</th>
                   <th class="px-4 py-2 text-left w-36">Expected</th>
@@ -135,12 +128,12 @@
                     />
                     <XCircle v-else class="w-4 h-4 text-red-500" />
                   </td>
-                  <td class="px-4 py-2.5 text-gray-900">{{ check.check }}</td>
-                  <td class="px-4 py-2.5 text-gray-500">{{ check.expected || "—" }}</td>
-                  <td class="px-4 py-2.5" :class="check.status === 'Fail' ? 'text-red-700 font-medium' : 'text-gray-500'">
+                  <td class="px-4 py-2.5 text-ink-gray-9">{{ check.check }}</td>
+                  <td class="px-4 py-2.5 text-ink-gray-5">{{ check.expected || "—" }}</td>
+                  <td class="px-4 py-2.5" :class="check.status === 'Fail' ? 'text-red-700 font-medium' : 'text-ink-gray-5'">
                     {{ check.actual || "—" }}
                   </td>
-                  <td class="px-4 py-2.5 text-gray-400">{{ check.message || "" }}</td>
+                  <td class="px-4 py-2.5 text-ink-gray-4">{{ check.message || "" }}</td>
                 </tr>
               </tbody>
             </table>

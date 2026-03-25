@@ -13,7 +13,6 @@
 			</div>
 
 			<template v-else-if="dashboard.data">
-				<!-- Stats -->
 				<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
 					<div class="p-5 bg-surface-white rounded-lg border">
 						<div class="text-sm text-ink-gray-5 mb-1">
@@ -53,7 +52,6 @@
 					</div>
 				</div>
 
-				<!-- Search -->
 				<div class="mb-4">
 					<input
 						v-model="searchQuery"
@@ -63,7 +61,6 @@
 					/>
 				</div>
 
-				<!-- Submissions table -->
 				<div
 					v-if="filteredSubmissions.length"
 					class="bg-surface-white rounded-lg border overflow-hidden"

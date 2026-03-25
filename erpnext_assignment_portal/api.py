@@ -4,18 +4,26 @@ import frappe
 from frappe.rate_limiter import rate_limit
 from frappe.utils.password import get_decrypted_password
 
+from erpnext_assignment_portal.checks.day1 import Day1Checker
+from erpnext_assignment_portal.checks.day2 import Day2Checker
+from erpnext_assignment_portal.checks.day3 import Day3Checker
+
 STAFF_ROLES = ["Moderator", "Course Creator", "Batch Evaluator", "System Manager"]
+
+CHECKERS = {
+	"Day 1": Day1Checker,
+	"Day 2": Day2Checker,
+	"Day 3": Day3Checker,
+}
 
 
 def _verify_site_owner(site_name: str):
-	"""Only the site owner can access their own site."""
 	owner = frappe.db.get_value("ERPNext Site", site_name, "student")
 	if owner != frappe.session.user:
 		frappe.throw("You don't have access to this site.", frappe.PermissionError)
 
 
 def _get_course_student_emails() -> list[str]:
-	"""Get student emails enrolled in the configured course via LMS Enrollment."""
 	course = frappe.db.get_single_value("Assignment Portal Settings", "course")
 	if not course:
 		return []
@@ -33,7 +41,6 @@ def _get_course_student_emails() -> list[str]:
 @frappe.whitelist()
 def test_connection(site_name: str) -> dict:
 	"""Test connection to a remote ERPNext site (owner only)."""
-	# TODO: change to press connection
 	_verify_site_owner(site_name)
 	site = frappe.get_doc("ERPNext Site", site_name)
 	return site.test_connection()
@@ -41,9 +48,8 @@ def test_connection(site_name: str) -> dict:
 
 @frappe.whitelist(methods=["POST"])
 def delete_site(site_name: str):
-	"""Delete an ERPNext Site connection. ERPNext Assignment Results are preserved."""
+	"""Delete an ERPNext Site connection. Assignment results are preserved."""
 	_verify_site_owner(site_name)
-	# TODO: change to press connection so no need for the entire erpnext site doc
 	frappe.db.set_value(
 		"ERPNext Assignment Result",
 		{"site": site_name, "student": frappe.session.user},
@@ -57,26 +63,17 @@ def delete_site(site_name: str):
 @frappe.whitelist(methods=["POST"])
 @rate_limit(limit=10, seconds=60)
 def run_check(site_name: str, day: str) -> dict:
+	"""Run assignment checks for a given day against the student's ERPNext site."""
 	_verify_site_owner(site_name)
+
+	if day not in CHECKERS:
+		frappe.throw(f"Invalid day: {day}. Choose from: {', '.join(CHECKERS.keys())}")
 
 	site = frappe.get_doc("ERPNext Site", site_name)
 	password = get_decrypted_password("ERPNext Site", site.name, "site_password")
 
-	checkers = {
-		"Day 1": "erpnext_assignment_portal.checks.day1.Day1Checker",
-		"Day 2": "erpnext_assignment_portal.checks.day2.Day2Checker",
-		"Day 3": "erpnext_assignment_portal.checks.day3.Day3Checker",
-	}
-
-	if day not in checkers:
-		frappe.throw(f"Invalid day: {day}. Choose from: {', '.join(checkers.keys())}")
-
-	module_path, class_name = checkers[day].rsplit(".", 1)
-	module = __import__(module_path, fromlist=[class_name])
-	checker_class = getattr(module, class_name)
-
 	try:
-		checker = checker_class(site.site_url, site.site_username, password)
+		checker = CHECKERS[day](site.site_url, site.site_username, password)
 		result = checker.run()
 	except Exception:
 		frappe.log_error(title=f"Check failed: {site_name} - {day}")

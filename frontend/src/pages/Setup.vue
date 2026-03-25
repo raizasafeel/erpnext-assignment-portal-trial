@@ -1,15 +1,14 @@
 <template>
   <AppLayout>
     <div class="p-8 max-w-2xl">
-      <h2 class="text-2xl font-bold text-gray-900 mb-1">Site Setup</h2>
-      <p class="text-gray-500 mb-8">Connect your ERPNext demo site so we can check your assignments.</p>
+      <h2 class="text-2xl font-bold text-ink-gray-9 mb-1">Site Setup</h2>
+      <p class="text-ink-gray-5 mb-8">Connect your ERPNext demo site so we can check your assignments.</p>
 
-      <!-- Existing sites -->
       <div v-if="sites.data?.length" class="mb-8 space-y-3">
         <div
           v-for="site in sites.data"
           :key="site.name"
-          class="flex items-center justify-between p-4 bg-white rounded-lg border"
+          class="flex items-center justify-between p-4 bg-surface-white rounded-lg border"
         >
           <div class="flex items-center gap-3">
             <div
@@ -17,8 +16,8 @@
               :class="site.connection_status === 'Connected' ? 'bg-green-500' : site.connection_status === 'Failed' ? 'bg-red-500' : 'bg-gray-300'"
             />
             <div>
-              <div class="font-medium text-gray-900">{{ site.site_url }}</div>
-              <div class="text-sm text-gray-500">{{ site.site_username }}</div>
+              <div class="font-medium text-ink-gray-9">{{ site.site_url }}</div>
+              <div class="text-sm text-ink-gray-5">{{ site.site_username }}</div>
             </div>
           </div>
           <div class="flex items-center gap-2">
@@ -41,12 +40,11 @@
         </div>
       </div>
 
-      <!-- Add new site form -->
-      <div class="p-6 bg-white rounded-lg border">
-        <h3 class="font-semibold text-gray-900 mb-4">Add ERPNext Site</h3>
+      <div class="p-6 bg-surface-white rounded-lg border">
+        <h3 class="font-semibold text-ink-gray-9 mb-4">Add ERPNext Site</h3>
         <div class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+            <label class="block text-sm font-medium text-ink-gray-7 mb-1">
               Site URL <span class="text-red-500">*</span>
             </label>
             <input
@@ -54,13 +52,13 @@
               v-model="form.site_url"
               placeholder="https://your-site.erpnext.com"
               class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-              :class="fieldErrors.site_url ? 'border-red-500 bg-red-50' : 'border-gray-300'"
+              :class="fieldErrors.site_url ? 'border-red-500 bg-red-50' : 'border-outline-gray-2'"
             />
             <p v-if="fieldErrors.site_url" class="text-xs text-red-600 mt-1">{{ fieldErrors.site_url }}</p>
-            <p v-else class="text-xs text-gray-400 mt-1">Enter the full URL of your ERPNext demo site</p>
+            <p v-else class="text-xs text-ink-gray-4 mt-1">Enter the full URL of your ERPNext demo site</p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+            <label class="block text-sm font-medium text-ink-gray-7 mb-1">
               Username <span class="text-red-500">*</span>
             </label>
             <input
@@ -68,13 +66,13 @@
               v-model="form.site_username"
               placeholder="admin@example.com"
               class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-              :class="fieldErrors.site_username ? 'border-red-500 bg-red-50' : 'border-gray-300'"
+              :class="fieldErrors.site_username ? 'border-red-500 bg-red-50' : 'border-outline-gray-2'"
             />
             <p v-if="fieldErrors.site_username" class="text-xs text-red-600 mt-1">{{ fieldErrors.site_username }}</p>
-            <p v-else class="text-xs text-gray-400 mt-1">Enter the email address you use to log in to your ERPNext site</p>
+            <p v-else class="text-xs text-ink-gray-4 mt-1">Enter the email address you use to log in to your ERPNext site</p>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+            <label class="block text-sm font-medium text-ink-gray-7 mb-1">
               Password <span class="text-red-500">*</span>
             </label>
             <input
@@ -82,22 +80,21 @@
               v-model="form.site_password"
               placeholder="Your site password"
               class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-              :class="fieldErrors.site_password ? 'border-red-500 bg-red-50' : 'border-gray-300'"
+              :class="fieldErrors.site_password ? 'border-red-500 bg-red-50' : 'border-outline-gray-2'"
             />
             <p v-if="fieldErrors.site_password" class="text-xs text-red-600 mt-1">{{ fieldErrors.site_password }}</p>
-            <p v-else class="text-xs text-gray-400 mt-1">Enter your ERPNext site password</p>
+            <p v-else class="text-xs text-ink-gray-4 mt-1">Enter your ERPNext site password</p>
           </div>
 
-          <!-- Consent checkbox -->
           <div class="flex items-start gap-2 pt-2">
             <input
               id="consent"
               type="checkbox"
               v-model="consentGiven"
-              class="mt-0.5 h-4 w-4 rounded text-gray-900 focus:ring-gray-900"
-              :class="fieldErrors.consent ? 'border-red-500 ring-2 ring-red-500' : 'border-gray-300'"
+              class="mt-0.5 h-4 w-4 rounded text-ink-gray-9 focus:ring-gray-900"
+              :class="fieldErrors.consent ? 'border-red-500 ring-2 ring-red-500' : 'border-outline-gray-2'"
             />
-            <label for="consent" class="text-sm leading-tight" :class="fieldErrors.consent ? 'text-red-600' : 'text-gray-600'">
+            <label for="consent" class="text-sm leading-tight" :class="fieldErrors.consent ? 'text-red-600' : 'text-ink-gray-5'">
               By providing these credentials, I consent to the Assignment Portal
               accessing my site in read-only mode to verify my assignment completion.
               No data will be modified on my site.
@@ -115,7 +112,6 @@
         </div>
       </div>
 
-      <!-- Test result -->
       <div v-if="testResult" class="mt-4 p-4 rounded-lg border" :class="testResult.status === 'Connected' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'">
         <div class="flex items-center gap-2">
           <CheckCircle2 v-if="testResult.status === 'Connected'" class="w-5 h-5 text-green-600" />

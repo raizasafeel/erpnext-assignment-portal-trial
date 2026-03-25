@@ -2,8 +2,6 @@ from erpnext_assignment_portal.checks.base import BaseChecker
 
 
 class Day2Checker(BaseChecker):
-	"""Validates Day 2 assignment: Sales & Purchase Module scenarios."""
-
 	def run(self) -> dict:
 		self.check_sales_cycle()
 		self.check_purchase_cycle()

@@ -5,8 +5,6 @@ COMPANY_ABBR = "GTS"
 
 
 class Day1Checker(BaseChecker):
-	"""Validates Day 1 assignment: Master Data Setup."""
-
 	def run(self) -> dict:
 		self.check_company()
 		self.check_fiscal_year()
@@ -399,7 +397,6 @@ class Day1Checker(BaseChecker):
 		wh_full_names = [w.get("name", "") for w in all_warehouses]
 
 		def wh_exists(name):
-			"""Check if warehouse exists by name or full name (with - GTS suffix)."""
 			return (
 				name in wh_names
 				or f"{name} - {COMPANY_ABBR}" in wh_full_names

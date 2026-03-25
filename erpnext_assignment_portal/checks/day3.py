@@ -5,8 +5,6 @@ COMPANY_ABBR = "GTS"
 
 
 class Day3Checker(BaseChecker):
-	"""Validates Day 3 assignment: Basic Accounting and Manufacturing."""
-
 	def run(self) -> dict:
 		self.check_budget_setup()
 		self.check_accounting_dimensions()

@@ -3,23 +3,22 @@
     <div class="p-8 max-w-4xl">
       <div class="mb-6">
         <router-link to="/dashboard" class="text-sm text-ink-gray-5 hover:text-ink-gray-7 mb-2 inline-block">&larr; Back to Dashboard</router-link>
-        <h2 class="text-2xl font-bold text-gray-900">{{ studentEmail }}</h2>
-        <p class="text-gray-500">Student check results</p>
+        <h2 class="text-2xl font-bold text-ink-gray-9">{{ studentEmail }}</h2>
+        <p class="text-ink-gray-5">Student check results</p>
       </div>
 
-      <div v-if="results.loading" class="text-sm text-gray-500">Loading results...</div>
+      <div v-if="results.loading" class="text-sm text-ink-gray-5">Loading results...</div>
 
       <div v-else-if="results.data?.length" class="space-y-4">
         <div
           v-for="r in results.data"
           :key="r.name"
-          class="bg-white rounded-lg border overflow-hidden"
+          class="bg-surface-white rounded-lg border overflow-hidden"
         >
-          <!-- Day header -->
           <div class="flex items-center justify-between px-5 py-4">
             <div>
-              <h3 class="font-semibold text-gray-900">{{ r.day }}</h3>
-              <p class="text-xs text-gray-500 mt-0.5">Checked {{ formatDate(r.checked_at) }}</p>
+              <h3 class="font-semibold text-ink-gray-9">{{ r.day }}</h3>
+              <p class="text-xs text-ink-gray-5 mt-0.5">Checked {{ formatDate(r.checked_at) }}</p>
             </div>
             <span
               class="text-lg font-bold"
@@ -29,7 +28,6 @@
             </span>
           </div>
 
-          <!-- Score bar -->
           <div class="px-5 pb-4">
             <div class="w-full bg-gray-100 rounded-full h-2">
               <div
@@ -40,10 +38,9 @@
             </div>
           </div>
 
-          <!-- Expandable detail -->
           <div class="border-t">
             <button
-              class="w-full flex items-center justify-between px-5 py-3 text-sm text-gray-500 hover:bg-gray-50"
+              class="w-full flex items-center justify-between px-5 py-3 text-sm text-ink-gray-5 hover:bg-surface-gray-2"
               @click="toggleDay(r.day)"
             >
               <span>{{ openDays[r.day] ? "Hide" : "Show" }} details</span>
@@ -56,9 +53,9 @@
                 :key="section.name"
                 class="border-b last:border-b-0"
               >
-                <div class="flex items-center justify-between px-5 py-2.5 bg-gray-50 text-sm">
-                  <span class="font-medium text-gray-700">{{ section.name }}</span>
-                  <span class="text-gray-500">{{ section.passed }}/{{ section.total }}</span>
+                <div class="flex items-center justify-between px-5 py-2.5 bg-surface-gray-2 text-sm">
+                  <span class="font-medium text-ink-gray-7">{{ section.name }}</span>
+                  <span class="text-ink-gray-5">{{ section.passed }}/{{ section.total }}</span>
                 </div>
                 <table class="w-full text-sm">
                   <tbody>
@@ -72,8 +69,8 @@
                         <CheckCircle2 v-if="check.status === 'Pass'" class="w-4 h-4 text-green-500" />
                         <XCircle v-else class="w-4 h-4 text-red-500" />
                       </td>
-                      <td class="py-2 text-gray-900">{{ check.check }}</td>
-                      <td class="px-5 py-2 text-right text-gray-500 text-xs">
+                      <td class="py-2 text-ink-gray-9">{{ check.check }}</td>
+                      <td class="px-5 py-2 text-right text-ink-gray-5 text-xs">
                         <template v-if="check.status === 'Fail'">
                           Expected: {{ check.expected || "—" }} | Got: {{ check.actual || "—" }}
                         </template>
@@ -87,8 +84,8 @@
         </div>
       </div>
 
-      <div v-else class="p-6 bg-white rounded-lg border border-dashed border-gray-300 text-center">
-        <p class="text-gray-500">No results found for this student.</p>
+      <div v-else class="p-6 bg-surface-white rounded-lg border border-dashed border-outline-gray-2 text-center">
+        <p class="text-ink-gray-5">No results found for this student.</p>
       </div>
     </div>
   </AppLayout>
