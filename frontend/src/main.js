@@ -50,4 +50,19 @@ for (const key in globalComponents) {
 	app.component(key, globalComponents[key])
 }
 
-app.mount("#app")
+// CSRF Bandaid
+async function initCsrfToken() {
+	try {
+		const res = await fetch("/api/method/frappe.auth.get_csrf_token", {
+			credentials: "include",
+		})
+		const data = await res.json()
+		if (data.message) {
+			window.csrf_token = data.message
+		}
+	} catch {
+		// Fall back to the token from the HTML template
+	}
+}
+
+initCsrfToken().then(() => app.mount("#app"))
