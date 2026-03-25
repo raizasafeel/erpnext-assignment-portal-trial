@@ -10,6 +10,27 @@ from erpnext_assignment_portal.checks.day3 import Day3Checker
 
 STAFF_ROLES = ["Moderator", "Course Creator", "Batch Evaluator", "System Manager"]
 
+
+@frappe.whitelist(methods=["GET"])
+def get_csrf_token():
+	"""Return a fresh CSRF token for the current session."""
+	token = frappe.sessions.get_csrf_token()
+	frappe.db.commit()
+	return token
+
+
+@frappe.whitelist(methods=["POST"])
+@rate_limit(limit=10, seconds=60)
+def create_site(site_url: str, site_username: str, site_password: str) -> dict:
+	"""Create an ERPNext Site connection for the current student."""
+	site = frappe.new_doc("ERPNext Site")
+	site.site_url = site_url.strip()
+	site.site_username = site_username.strip()
+	site.site_password = site_password
+	site.insert()
+	
+	return {"name": site.name, "site_url": site.site_url, "site_username": site.site_username}
+
 CHECKERS = {
 	"Day 1": Day1Checker,
 	"Day 2": Day2Checker,
@@ -57,7 +78,7 @@ def delete_site(site_name: str):
 		"",
 	)
 
-	frappe.delete_doc("ERPNext Site", site_name)
+	frappe.delete_doc("ERPNext Site", site_name, ignore_permissions=True)
 	frappe.db.commit()
 
 @frappe.whitelist(methods=["POST"])

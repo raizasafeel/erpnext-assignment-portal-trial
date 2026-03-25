@@ -3,7 +3,7 @@ import socket
 from urllib.parse import urlparse
 
 import frappe
-from frappe.frappeclient import FrappeClient
+from frappe.frappeclient import AuthError, FrappeClient, SiteExpiredError, SiteUnreachableError
 from frappe.model.document import Document
 from frappe.utils.password import get_decrypted_password
 
@@ -56,6 +56,13 @@ def _validate_url_safe(url: str):
 
 
 def _friendly_error(e: Exception) -> str:
+	if isinstance(e, AuthError):
+		return "Invalid credentials. Check your username and password."
+	if isinstance(e, SiteExpiredError):
+		return "Site has expired."
+	if isinstance(e, SiteUnreachableError):
+		return "Site is unreachable (502)."
+
 	error_str = str(e).lower()
 	for keywords, message in _ERROR_PATTERNS.items():
 		if any(kw in error_str for kw in keywords):

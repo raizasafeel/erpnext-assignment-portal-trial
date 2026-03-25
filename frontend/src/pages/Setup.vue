@@ -207,13 +207,10 @@ async function addSite() {
   testResult.value = null
 
   try {
-    const doc = await call("frappe.client.insert", {
-      doc: {
-        doctype: "ERPNext Site",
-        site_url: form.site_url.trim(),
-        site_username: form.site_username.trim(),
-        site_password: form.site_password,
-      },
+    const doc = await call("erpnext_assignment_portal.api.create_site", {
+      site_url: form.site_url,
+      site_username: form.site_username,
+      site_password: form.site_password,
     })
 
     // Test connection
@@ -260,7 +257,7 @@ async function testConnection(siteName) {
     if (result.status === "Connected") {
       toast.success(`Connected successfully as ${result.user}`)
     } else {
-      toast.error(`Connection failed: ${result.error}`)
+      toast.error(result.error)
     }
   } catch (err) {
     testResult.value = { status: "Failed", error: err.message }
