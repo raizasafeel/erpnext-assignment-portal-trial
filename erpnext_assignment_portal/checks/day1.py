@@ -1,4 +1,4 @@
-from erpnext_assignment_portal.checks.base import BaseChecker, normalize
+from erpnext_assignment_portal.checks.base import BaseChecker, normalize, match, contains
 
 COMPANY_NAME = "Greenfield Trading & Services Pvt. Ltd."
 COMPANY_ABBR = "GTS"
@@ -35,9 +35,9 @@ class Day1Checker(BaseChecker):
 
 		self.check(
 			section, "Abbreviation is GTS",
-			company.get("abbr") == COMPANY_ABBR,
+			match(company.get("abbr", ""), COMPANY_ABBR),
 			expected=COMPANY_ABBR, actual=company.get("abbr", ""),
-			message="" if company.get("abbr") == COMPANY_ABBR else f"Company abbreviation should be '{COMPANY_ABBR}', but found '{company.get('abbr', '')}'.",
+			message="" if match(company.get("abbr", ""), COMPANY_ABBR) else f"Company abbreviation should be '{COMPANY_ABBR}', but found '{company.get('abbr', '')}'.",
 		)
 		self.check(
 			section, "Default Cost Center set",
@@ -131,18 +131,18 @@ class Day1Checker(BaseChecker):
 		if not address_type:
 			return bool(addrs)
 		for a in addrs:
-			if a.get("address_type") == address_type:
+			if match(a.get("address_type", ""), address_type):
 				return True
-			if address_type == "Billing" and a.get("is_primary_address"):
+			if match(address_type, "Billing") and a.get("is_primary_address"):
 				return True
-			if address_type == "Shipping" and a.get("is_shipping_address"):
+			if match(address_type, "Shipping") and a.get("is_shipping_address"):
 				return True
 		return False
 
 	def _get_item_price(self, item_code, price_list):
 		prices = self.doc_list(
 			"Item Price",
-			filters={"item_code": item_code, "price_list": price_list, "selling": 1 if "Selling" in price_list else 0, "buying": 1 if "Buying" in price_list else 0},
+			filters={"item_code": item_code, "price_list": price_list, "selling": 1 if contains(price_list, "Selling") else 0, "buying": 1 if contains(price_list, "Buying") else 0},
 			fields=["price_list_rate"],
 		)
 		return prices[0].get("price_list_rate") if prices else None
@@ -163,22 +163,22 @@ class Day1Checker(BaseChecker):
 		if c1:
 			self.check(
 				section, "Sunrise Electronics - Customer Type is Company",
-				c1.get("customer_type") == "Company",
+				match(c1.get("customer_type", ""), "Company"),
 				expected="Company", actual=c1.get("customer_type", ""),
 			)
 			self.check(
 				section, "Sunrise Electronics - Customer Group is Commercial",
-				c1.get("customer_group") == "Commercial",
+				match(c1.get("customer_group", ""), "Commercial"),
 				expected="Commercial", actual=c1.get("customer_group", ""),
 			)
 			self.check(
 				section, "Sunrise Electronics - Territory is USA",
-				c1.get("territory") in ("United States", "USA", "US"),
+				match(c1.get("territory", ""), "United States") or match(c1.get("territory", ""), "USA") or match(c1.get("territory", ""), "US"),
 				expected="USA", actual=c1.get("territory", ""),
 			)
 			self.check(
 				section, "Sunrise Electronics - Currency is USD",
-				c1.get("default_currency") == "USD",
+				match(c1.get("default_currency", ""), "USD"),
 				expected="USD", actual=c1.get("default_currency", ""),
 			)
 			passed = self._has_address("Customer", "Sunrise Electronics", "Billing")
@@ -222,12 +222,12 @@ class Day1Checker(BaseChecker):
 		if c2:
 			self.check(
 				section, "Bright Future Technologies - Customer Type is Company",
-				c2.get("customer_type") == "Company",
+				match(c2.get("customer_type", ""), "Company"),
 				expected="Company", actual=c2.get("customer_type", ""),
 			)
 			self.check(
 				section, "Bright Future Technologies - Customer Group is Commercial",
-				c2.get("customer_group") == "Commercial",
+				match(c2.get("customer_group", ""), "Commercial"),
 				expected="Commercial", actual=c2.get("customer_group", ""),
 			)
 			passed = self._has_address("Customer", "Bright Future Technologies Pvt. Ltd.", "Billing")
@@ -274,12 +274,12 @@ class Day1Checker(BaseChecker):
 		if s1:
 			self.check(
 				section, "TechSource Distributors - Supplier Group is Local",
-				s1.get("supplier_group") == "Local",
+				match(s1.get("supplier_group", ""), "Local"),
 				expected="Local", actual=s1.get("supplier_group", ""),
 			)
 			self.check(
 				section, "TechSource Distributors - Country is India",
-				s1.get("country") == "India",
+				match(s1.get("country", ""), "India"),
 				expected="India", actual=s1.get("country", ""),
 			)
 			passed = self._has_address("Supplier", "TechSource Distributors")
@@ -314,12 +314,12 @@ class Day1Checker(BaseChecker):
 		if s2:
 			self.check(
 				section, "Global Components Ltd. - Supplier Group is International",
-				s2.get("supplier_group") == "International",
+				match(s2.get("supplier_group", ""), "International"),
 				expected="International", actual=s2.get("supplier_group", ""),
 			)
 			self.check(
 				section, "Global Components Ltd. - Currency is USD",
-				s2.get("default_currency") == "USD",
+				match(s2.get("default_currency", ""), "USD"),
 				expected="USD", actual=s2.get("default_currency", ""),
 			)
 			passed = self._has_address("Supplier", "Global Components Ltd.")
@@ -366,16 +366,16 @@ class Day1Checker(BaseChecker):
 		# Item 1: LED Monitor 24 inch
 		def item1_checks(item):
 			self.check(section, "LED Monitor - Item Group is Products",
-				item.get("item_group") == "Products",
+				match(item.get("item_group", ""), "Products"),
 				expected="Products", actual=item.get("item_group", ""))
 			self.check(section, "LED Monitor - Maintain Stock is Yes",
 				item.get("is_stock_item") == 1,
 				expected="Yes", actual="Yes" if item.get("is_stock_item") else "No")
 			self.check(section, "LED Monitor - Stock UOM is Nos",
-				item.get("stock_uom") in ("Nos", "nos", "Numbers"),
+				match(item.get("stock_uom", ""), "Nos") or match(item.get("stock_uom", ""), "Numbers"),
 				expected="Nos", actual=item.get("stock_uom", ""))
 			self.check(section, "LED Monitor - Valuation Method is FIFO",
-				item.get("valuation_method") == "FIFO",
+				match(item.get("valuation_method", ""), "FIFO"),
 				expected="FIFO", actual=item.get("valuation_method", ""))
 			val_rate = item.get("valuation_rate", 0)
 			self.check(section, "LED Monitor - Valuation Rate is 5000",
@@ -393,13 +393,13 @@ class Day1Checker(BaseChecker):
 		# Item 2: Wireless Keyboard (KB-WL)
 		def item2_checks(item):
 			self.check(section, "KB-WL - Item Name is Wireless Keyboard",
-				item.get("item_name") == "Wireless Keyboard",
+				match(item.get("item_name", ""), "Wireless Keyboard"),
 				expected="Wireless Keyboard", actual=item.get("item_name", ""))
 			self.check(section, "KB-WL - Maintain Stock is Yes",
 				item.get("is_stock_item") == 1,
 				expected="Yes", actual="Yes" if item.get("is_stock_item") else "No")
 			self.check(section, "KB-WL - Stock UOM is Nos",
-				item.get("stock_uom") in ("Nos", "nos", "Numbers"),
+				match(item.get("stock_uom", ""), "Nos") or match(item.get("stock_uom", ""), "Numbers"),
 				expected="Nos", actual=item.get("stock_uom", ""))
 			selling = self._get_item_price("KB-WL", "Standard Selling")
 			self.check(section, "KB-WL - Standard Selling Price is 1200",
@@ -421,7 +421,7 @@ class Day1Checker(BaseChecker):
 		# Item 3: Installation Service (SERV-INST)
 		def item3_checks(item):
 			self.check(section, "SERV-INST - Item Group is Services",
-				item.get("item_group") == "Services",
+				match(item.get("item_group", ""), "Services"),
 				expected="Services", actual=item.get("item_group", ""))
 			self.check(section, "SERV-INST - Maintain Stock is No",
 				item.get("is_stock_item") == 0,
@@ -434,7 +434,7 @@ class Day1Checker(BaseChecker):
 					break
 			expected_acct = f"Service - {COMPANY_ABBR}"
 			self.check(section, "SERV-INST - Income Account is Service Income",
-				income_acct == expected_acct,
+				match(income_acct, expected_acct),
 				expected=expected_acct, actual=income_acct or "Not set")
 			selling = self._get_item_price("SERV-INST", "Standard Selling")
 			self.check(section, "SERV-INST - Standard Selling Price is 1500",
@@ -483,13 +483,16 @@ class Day1Checker(BaseChecker):
 			wh_by_name.setdefault(wh_name, []).append(parent)
 
 		def wh_exists(name, parent_name=None):
-			parents = wh_by_name.get(name, [])
-			if not parents:
+			matching_parents = []
+			for wh_name_key, parents in wh_by_name.items():
+				if match(wh_name_key, name):
+					matching_parents.extend(parents)
+			if not matching_parents:
 				return False
 			if parent_name is None:
 				return True
 			expected_parent = f"{parent_name} - {COMPANY_ABBR}"
-			return any(p == expected_parent for p in parents)
+			return any(match(p, expected_parent) for p in matching_parents)
 
 		# (check label, warehouse name, required parent or None for top-level)
 		warehouses_to_check = [
@@ -548,8 +551,8 @@ class Day1Checker(BaseChecker):
 			)
 			if profile:
 				profile_roles = [r.get("role") for r in profile.get("roles", [])]
-				missing = [r for r in expected_roles if r not in profile_roles]
-				extra = [r for r in profile_roles if r not in expected_roles]
+				missing = [r for r in expected_roles if not any(match(r, pr) for pr in profile_roles)]
+				extra = [r for r in profile_roles if not any(match(r, er) for er in expected_roles)]
 				self.check(
 					section, f"Role Profile '{profile_name}' has all required roles",
 					not missing,
@@ -592,14 +595,14 @@ class Day1Checker(BaseChecker):
 			actual_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
 			self.check(
 				section, f"{email} - name is {full_name}",
-				user.get("first_name") == u["first_name"] and user.get("last_name") == u["last_name"],
+				match(user.get("first_name", ""), u["first_name"]) and match(user.get("last_name", ""), u["last_name"]),
 				expected=full_name, actual=actual_name or "Not set",
 			)
 
 			actual_profile = user.get("role_profile_name", "") or ""
 			self.check(
 				section, f"{email} - has Role Profile '{profile_name}'",
-				actual_profile == profile_name,
+				match(actual_profile, profile_name),
 				expected=profile_name, actual=actual_profile or "Not set",
 			)
 
@@ -633,20 +636,20 @@ class Day1Checker(BaseChecker):
 		account_full_names = [a.get("name", "") for a in all_accounts]
 
 		for acct in required_accounts:
-			match = ""
+			found_acct = ""
 			norm_acct = normalize(acct)
 			for a in all_accounts:
 				if normalize(a.get("account_name", "")) == norm_acct or normalize(a.get("name", "")) == normalize(f"{acct} - {COMPANY_ABBR}"):
-					match = a.get("name", "")
+					found_acct = a.get("name", "")
 					break
-			if not match:
+			if not found_acct:
 				for a in all_accounts:
 					if norm_acct in normalize(a.get("name", "")):
-						match = a.get("name", "")
+						found_acct = a.get("name", "")
 						break
 			self.check(
-				section, f"Account '{acct}' exists", bool(match),
+				section, f"Account '{acct}' exists", bool(found_acct),
 				expected=f"{acct} - {COMPANY_ABBR}",
-				actual=match or "Not found",
-				message="" if match else f"Account '{acct}' not found. Go to Chart of Accounts and add it.",
+				actual=found_acct or "Not found",
+				message="" if found_acct else f"Account '{acct}' not found. Go to Chart of Accounts and add it.",
 			)

@@ -1,4 +1,4 @@
-from erpnext_assignment_portal.checks.base import BaseChecker, normalize
+from erpnext_assignment_portal.checks.base import BaseChecker, normalize, match, contains
 
 COMPANY_NAME = "Greenfield Trading & Services Pvt. Ltd."
 COMPANY_ABBR = "GTS"
@@ -34,9 +34,9 @@ class Day3Checker(BaseChecker):
 
 		for cc_name, parent in cost_centers.items():
 			found = (
-				cc_name in cc_names
-				or f"{cc_name} - {COMPANY_ABBR}" in cc_full_names
-				or any(cc_name.lower() in n.lower() for n in cc_full_names)
+				any(match(cc_name, n) for n in cc_names)
+				or any(match(f"{cc_name} - {COMPANY_ABBR}", n) for n in cc_full_names)
+				or any(contains(n, cc_name) for n in cc_full_names)
 			)
 			self.check(section, f"Cost Center '{cc_name}' exists", found,
 				expected="Yes", actual="Yes" if found else "No")
@@ -82,7 +82,7 @@ class Day3Checker(BaseChecker):
 		sales_budget = None
 		for b in budgets:
 			cc = b.get("cost_center", "")
-			if "Sales Department" in cc or "Sales" in cc:
+			if contains(cc, "Sales Department") or contains(cc, "Sales"):
 				sales_budget = b
 				break
 
@@ -102,9 +102,9 @@ class Day3Checker(BaseChecker):
 			travel_line = None
 			for line in budget_accounts:
 				acct = line.get("account", "")
-				if "Marketing" in acct:
+				if contains(acct, "Marketing"):
 					marketing_line = line
-				if "Travel" in acct:
+				if contains(acct, "Travel"):
 					travel_line = line
 
 			self.check(
@@ -126,14 +126,14 @@ class Day3Checker(BaseChecker):
 			self.check(
 				section,
 				"Action if Annual Budget Exceeded is 'Warn'",
-				budget_doc.get("action_if_annual_budget_exceeded") == "Warn",
+				match(budget_doc.get("action_if_annual_budget_exceeded", ""), "Warn"),
 				expected="Warn",
 				actual=budget_doc.get("action_if_annual_budget_exceeded", "Not set"),
 			)
 			self.check(
 				section,
 				"Action if Monthly Budget Exceeded is 'Stop'",
-				budget_doc.get("action_if_monthly_budget_exceeded") == "Stop",
+				match(budget_doc.get("action_if_monthly_budget_exceeded", ""), "Stop"),
 				expected="Stop",
 				actual=budget_doc.get("action_if_monthly_budget_exceeded", "Not set"),
 			)
@@ -160,7 +160,7 @@ class Day3Checker(BaseChecker):
 			self.check(
 				section,
 				"Dimension document type is 'Branch'",
-				dim.get("document_type") == "Branch",
+				match(dim.get("document_type", ""), "Branch"),
 				expected="Branch",
 				actual=dim.get("document_type", ""),
 			)
@@ -180,8 +180,8 @@ class Day3Checker(BaseChecker):
 
 		for branch in branches:
 			alts = alternate_names.get(branch, [branch])
-			found = any(alt in branch_names for alt in alts) or any(
-				branch.lower().split()[0] in bn.lower() for bn in branch_names
+			found = any(any(match(alt, bn) for bn in branch_names) for alt in alts) or any(
+				contains(bn, branch.split()[0]) for bn in branch_names
 			)
 			self.check(section, f"Branch '{branch}' exists", found,
 				expected="Yes", actual="Yes" if found else "No")
@@ -196,7 +196,7 @@ class Day3Checker(BaseChecker):
 			fields=["name", "branch"],
 		)
 		si_with_mumbai = any(
-			"Mumbai" in (si.get("branch") or "") for si in si_list
+			contains(si.get("branch", ""), "Mumbai") for si in si_list
 		)
 		self.check(
 			section,
@@ -208,12 +208,12 @@ class Day3Checker(BaseChecker):
 		if si_with_mumbai:
 			# Verify items
 			for si in si_list:
-				if "Mumbai" in (si.get("branch") or ""):
+				if contains(si.get("branch", ""), "Mumbai"):
 					si_doc = self.doc_exists("Sales Invoice", si["name"])
 					items = si_doc.get("items", []) if si_doc else []
 					led_item = None
 					for item in items:
-						if "LED Monitor" in (item.get("item_name") or "") or "LED Monitor" in (item.get("item_code") or ""):
+						if contains(item.get("item_name", ""), "LED Monitor") or contains(item.get("item_code", ""), "LED Monitor"):
 							led_item = item
 							break
 					self.check(
@@ -242,7 +242,7 @@ class Day3Checker(BaseChecker):
 			fields=["name", "branch"],
 		)
 		pi_with_pune = any(
-			"Pune" in (pi.get("branch") or "") for pi in pi_list
+			contains(pi.get("branch", ""), "Pune") for pi in pi_list
 		)
 		self.check(
 			section,
@@ -253,12 +253,12 @@ class Day3Checker(BaseChecker):
 
 		if pi_with_pune:
 			for pi in pi_list:
-				if "Pune" in (pi.get("branch") or ""):
+				if contains(pi.get("branch", ""), "Pune"):
 					pi_doc = self.doc_exists("Purchase Invoice", pi["name"])
 					items = pi_doc.get("items", []) if pi_doc else []
 					led_item = None
 					for item in items:
-						if "LED Monitor" in (item.get("item_name") or "") or "LED Monitor" in (item.get("item_code") or ""):
+						if contains(item.get("item_name", ""), "LED Monitor") or contains(item.get("item_code", ""), "LED Monitor"):
 							led_item = item
 							break
 					self.check(
@@ -330,9 +330,9 @@ class Day3Checker(BaseChecker):
 				has_credit = False
 				for entry in entries:
 					acct = entry.get("account", "")
-					if debit_keyword.lower() in acct.lower() and entry.get("debit_in_account_currency", 0) == debit_amount:
+					if contains(acct, debit_keyword) and entry.get("debit_in_account_currency", 0) == debit_amount:
 						has_debit = True
-					if credit_keyword.lower() in acct.lower() and entry.get("credit_in_account_currency", 0) == credit_amount:
+					if contains(acct, credit_keyword) and entry.get("credit_in_account_currency", 0) == credit_amount:
 						has_credit = True
 				if has_debit and has_credit:
 					return je

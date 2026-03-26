@@ -1,4 +1,4 @@
-from erpnext_assignment_portal.checks.base import BaseChecker
+from erpnext_assignment_portal.checks.base import BaseChecker, match, contains
 
 
 class Day2Checker(BaseChecker):
@@ -36,9 +36,9 @@ class Day2Checker(BaseChecker):
 			for item in items:
 				code = item.get("item_code", "")
 				name = item.get("item_name", "")
-				if "LED Monitor" in name or "LED Monitor" in code:
+				if contains(name, "LED Monitor") or contains(code, "LED Monitor"):
 					led_item = item
-				if "Installation" in name or "SERV-INST" in code:
+				if contains(name, "Installation") or match(code, "SERV-INST"):
 					service_item = item
 
 			self.check(
@@ -87,9 +87,9 @@ class Day2Checker(BaseChecker):
 			for item in dn_items:
 				code = item.get("item_code", "")
 				name = item.get("item_name", "")
-				if "LED Monitor" in name or "LED Monitor" in code:
+				if contains(name, "LED Monitor") or contains(code, "LED Monitor"):
 					led_dn = item
-				if "Installation" in name or "SERV-INST" in code:
+				if contains(name, "Installation") or match(code, "SERV-INST"):
 					service_dn = item
 
 			self.check(
@@ -177,7 +177,7 @@ class Day2Checker(BaseChecker):
 			for item in po_items:
 				code = item.get("item_code", "")
 				name = item.get("item_name", "")
-				if "LED Monitor" in name or "LED Monitor" in code:
+				if contains(name, "LED Monitor") or contains(code, "LED Monitor"):
 					led_po = item
 					break
 
@@ -209,7 +209,7 @@ class Day2Checker(BaseChecker):
 			for item in pr_items:
 				code = item.get("item_code", "")
 				name = item.get("item_name", "")
-				if "LED Monitor" in name or "LED Monitor" in code:
+				if contains(name, "LED Monitor") or contains(code, "LED Monitor"):
 					led_pr = item
 					break
 
@@ -256,7 +256,7 @@ class Day2Checker(BaseChecker):
 			for item in se_items:
 				code = item.get("item_code", "")
 				name = item.get("item_name", "")
-				if "LED Monitor" in name or "LED Monitor" in code:
+				if contains(name, "LED Monitor") or contains(code, "LED Monitor"):
 					transfer_item = item
 					break
 

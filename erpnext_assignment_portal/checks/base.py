@@ -5,7 +5,7 @@ import re
 
 
 def normalize(s: str) -> str:
-	return re.sub(r"[^a-z0-9\s]", "", s.lower()).strip()
+	return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9\s]", "", s.lower())).strip()
 
 
 def match(actual: str, expected: str) -> bool:
