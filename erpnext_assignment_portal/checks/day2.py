@@ -3,9 +3,9 @@ from erpnext_assignment_portal.checks.base import BaseChecker
 
 class Day2Checker(BaseChecker):
 	def run(self) -> dict:
-		self.check_sales_cycle()
 		self.check_purchase_cycle()
 		self.check_stock_transfer()
+		self.check_sales_cycle()
 		return self.get_summary()
 
 	# ── Scenario 1: Standard Sales Cycle ──────────────────────
@@ -20,7 +20,8 @@ class Day2Checker(BaseChecker):
 			fields=["name", "customer", "status", "grand_total"],
 		)
 		has_so = len(so_list) > 0
-		self.check(section, "Sales Order exists for Sunrise Electronics (submitted)", has_so)
+		self.check(section, "Sales Order exists for Sunrise Electronics (submitted)", has_so,
+			expected="Yes", actual="Yes" if has_so else "No")
 
 		so_name = so_list[0]["name"] if has_so else None
 
@@ -74,7 +75,8 @@ class Day2Checker(BaseChecker):
 			fields=["name", "customer", "status"],
 		)
 		has_dn = len(dn_list) > 0
-		self.check(section, "Delivery Note exists for Sunrise Electronics (submitted)", has_dn)
+		self.check(section, "Delivery Note exists for Sunrise Electronics (submitted)", has_dn,
+			expected="Yes", actual="Yes" if has_dn else "No")
 
 		if has_dn:
 			dn = self.doc_exists("Delivery Note", dn_list[0]["name"])
@@ -113,7 +115,8 @@ class Day2Checker(BaseChecker):
 			fields=["name", "grand_total", "outstanding_amount"],
 		)
 		has_si = len(si_list) > 0
-		self.check(section, "Sales Invoice exists for Sunrise Electronics (submitted)", has_si)
+		self.check(section, "Sales Invoice exists for Sunrise Electronics (submitted)", has_si,
+			expected="Yes", actual="Yes" if has_si else "No")
 
 		# Check Payment Entry (partial payment ~50%)
 		pe_list = self.doc_list(
@@ -127,7 +130,8 @@ class Day2Checker(BaseChecker):
 			fields=["name", "paid_amount", "mode_of_payment"],
 		)
 		has_pe = len(pe_list) > 0
-		self.check(section, "Payment Entry exists (Receive from Sunrise Electronics)", has_pe)
+		self.check(section, "Payment Entry exists (Receive from Sunrise Electronics)", has_pe,
+			expected="Yes", actual="Yes" if has_pe else "No")
 
 		if has_pe and has_si:
 			invoice_total = si_list[0].get("grand_total", 0)
@@ -160,7 +164,8 @@ class Day2Checker(BaseChecker):
 			fields=["name", "supplier", "status", "grand_total"],
 		)
 		has_po = len(po_list) > 0
-		self.check(section, "Purchase Order exists for TechSource Distributors (submitted)", has_po)
+		self.check(section, "Purchase Order exists for TechSource Distributors (submitted)", has_po,
+			expected="Yes", actual="Yes" if has_po else "No")
 
 		po_name = po_list[0]["name"] if has_po else None
 
@@ -193,7 +198,8 @@ class Day2Checker(BaseChecker):
 			fields=["name", "supplier", "status"],
 		)
 		has_pr = len(pr_list) > 0
-		self.check(section, "Purchase Receipt exists for TechSource Distributors (submitted)", has_pr)
+		self.check(section, "Purchase Receipt exists for TechSource Distributors (submitted)", has_pr,
+			expected="Yes", actual="Yes" if has_pr else "No")
 
 		if has_pr:
 			pr = self.doc_exists("Purchase Receipt", pr_list[0]["name"])
@@ -223,7 +229,8 @@ class Day2Checker(BaseChecker):
 			fields=["name", "grand_total"],
 		)
 		has_pi = len(pi_list) > 0
-		self.check(section, "Purchase Invoice exists for TechSource Distributors (submitted)", has_pi)
+		self.check(section, "Purchase Invoice exists for TechSource Distributors (submitted)", has_pi,
+			expected="Yes", actual="Yes" if has_pi else "No")
 
 	# ── Inter-Warehouse Stock Transfer ────────────────────────
 
@@ -237,7 +244,8 @@ class Day2Checker(BaseChecker):
 			fields=["name", "purpose", "stock_entry_type"],
 		)
 		has_se = len(se_list) > 0
-		self.check(section, "Stock Entry (Material Transfer) exists and is submitted", has_se)
+		self.check(section, "Stock Entry (Material Transfer) exists and is submitted", has_se,
+			expected="Yes", actual="Yes" if has_se else "No")
 
 		if has_se:
 			# Check the most recent material transfer
@@ -270,12 +278,12 @@ class Day2Checker(BaseChecker):
 				self.check(
 					section, "Source warehouse is set",
 					bool(transfer_item.get("s_warehouse")),
-					actual=transfer_item.get("s_warehouse", "Not set"),
+					expected="Yes", actual=transfer_item.get("s_warehouse") or "Not set",
 				)
 				self.check(
 					section, "Target warehouse is set",
 					bool(transfer_item.get("t_warehouse")),
-					actual=transfer_item.get("t_warehouse", "Not set"),
+					expected="Yes", actual=transfer_item.get("t_warehouse") or "Not set",
 				)
 			else:
 				self.check(section, "Source warehouse is set", False, message="Transfer item not found")

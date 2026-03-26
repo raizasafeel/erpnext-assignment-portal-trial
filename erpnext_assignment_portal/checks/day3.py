@@ -1,4 +1,4 @@
-from erpnext_assignment_portal.checks.base import BaseChecker
+from erpnext_assignment_portal.checks.base import BaseChecker, normalize
 
 COMPANY_NAME = "Greenfield Trading & Services Pvt. Ltd."
 COMPANY_ABBR = "GTS"
@@ -38,7 +38,8 @@ class Day3Checker(BaseChecker):
 				or f"{cc_name} - {COMPANY_ABBR}" in cc_full_names
 				or any(cc_name.lower() in n.lower() for n in cc_full_names)
 			)
-			self.check(section, f"Cost Center '{cc_name}' exists", found)
+			self.check(section, f"Cost Center '{cc_name}' exists", found,
+				expected="Yes", actual="Yes" if found else "No")
 
 		# Step 2: Expense Accounts
 		expense_accounts = [
@@ -51,18 +52,21 @@ class Day3Checker(BaseChecker):
 			"Account",
 			filters={"company": COMPANY_NAME},
 			fields=["name", "account_name"],
-			limit_page_length=500,
+			limit_page_length=0,
 		)
 		acct_names = [a.get("account_name", "") for a in all_accounts]
 		acct_full_names = [a.get("name", "") for a in all_accounts]
 
 		for acct in expense_accounts:
-			found = (
-				acct in acct_names
-				or f"{acct} - {COMPANY_ABBR}" in acct_full_names
-				or any(acct.lower() in n.lower() for n in acct_full_names)
+			norm_acct = normalize(acct)
+			found = any(
+				normalize(a.get("account_name", "")) == norm_acct
+				or normalize(a.get("name", "")) == normalize(f"{acct} - {COMPANY_ABBR}")
+				or norm_acct in normalize(a.get("name", ""))
+				for a in all_accounts
 			)
-			self.check(section, f"Expense Account '{acct}' exists", found)
+			self.check(section, f"Expense Account '{acct}' exists", found,
+				expected="Yes", actual="Yes" if found else "No")
 
 		# Step 3: Budget exists for Sales Department
 		budgets = self.doc_list(
@@ -86,6 +90,7 @@ class Day3Checker(BaseChecker):
 			section,
 			"Budget exists for Sales Department (submitted)",
 			sales_budget is not None,
+			expected="Yes", actual="Yes" if sales_budget is not None else "No",
 		)
 
 		if sales_budget:
@@ -148,7 +153,8 @@ class Day3Checker(BaseChecker):
 
 		# Step 1: Branch dimension exists
 		dim = self.doc_exists("Accounting Dimension", "Branch")
-		self.check(section, "Accounting Dimension 'Branch' exists", dim is not None)
+		self.check(section, "Accounting Dimension 'Branch' exists", dim is not None,
+			expected="Yes", actual="Yes" if dim is not None else "No")
 
 		if dim:
 			self.check(
@@ -177,7 +183,8 @@ class Day3Checker(BaseChecker):
 			found = any(alt in branch_names for alt in alts) or any(
 				branch.lower().split()[0] in bn.lower() for bn in branch_names
 			)
-			self.check(section, f"Branch '{branch}' exists", found)
+			self.check(section, f"Branch '{branch}' exists", found,
+				expected="Yes", actual="Yes" if found else "No")
 
 		# Sales Invoice with Branch = Mumbai
 		si_list = self.doc_list(
@@ -195,6 +202,7 @@ class Day3Checker(BaseChecker):
 			section,
 			"Sales Invoice for Sunrise Electronics with Branch = Mumbai",
 			si_with_mumbai,
+			expected="Yes", actual="Yes" if si_with_mumbai else "No",
 		)
 
 		if si_with_mumbai:
@@ -240,6 +248,7 @@ class Day3Checker(BaseChecker):
 			section,
 			"Purchase Invoice for TechSource Distributors with Branch = Pune",
 			pi_with_pune,
+			expected="Yes", actual="Yes" if pi_with_pune else "No",
 		)
 
 		if pi_with_pune:
@@ -286,18 +295,21 @@ class Day3Checker(BaseChecker):
 			"Account",
 			filters={"company": COMPANY_NAME},
 			fields=["name", "account_name"],
-			limit_page_length=500,
+			limit_page_length=0,
 		)
 		acct_names = [a.get("account_name", "") for a in all_accounts]
 		acct_full_names = [a.get("name", "") for a in all_accounts]
 
 		for acct in required_accounts:
-			found = (
-				acct in acct_names
-				or f"{acct} - {COMPANY_ABBR}" in acct_full_names
-				or any(acct.lower() in n.lower() for n in acct_full_names)
+			norm_acct = normalize(acct)
+			found = any(
+				normalize(a.get("account_name", "")) == norm_acct
+				or normalize(a.get("name", "")) == normalize(f"{acct} - {COMPANY_ABBR}")
+				or norm_acct in normalize(a.get("name", ""))
+				for a in all_accounts
 			)
-			self.check(section, f"Account '{acct}' exists", found)
+			self.check(section, f"Account '{acct}' exists", found,
+				expected="Yes", actual="Yes" if found else "No")
 
 		# Get all submitted Journal Entries for the company
 		je_list = self.doc_list(
@@ -333,6 +345,7 @@ class Day3Checker(BaseChecker):
 			"Journal Entry: Office Rent Payment (₹50,000)",
 			je_rent is not None,
 			expected="Debit Office Rent 50,000 / Credit Bank 50,000",
+			actual="Found" if je_rent is not None else "Not found",
 		)
 
 		# Step 3: Salary Expense (Debit: Salary Expense 100000, Credit: Salary Payable 100000)
@@ -342,6 +355,7 @@ class Day3Checker(BaseChecker):
 			"Journal Entry: Salary Expense (₹1,00,000)",
 			je_salary is not None,
 			expected="Debit Salary Expense 1,00,000 / Credit Salary Payable 1,00,000",
+			actual="Found" if je_salary is not None else "Not found",
 		)
 
 		# Step 4: Depreciation Entry (Debit: Depreciation 10000, Credit: Office Equipment 10000)
@@ -351,6 +365,7 @@ class Day3Checker(BaseChecker):
 			"Journal Entry: Depreciation (₹10,000)",
 			je_dep is not None,
 			expected="Debit Depreciation 10,000 / Credit Office Equipment 10,000",
+			actual="Found" if je_dep is not None else "Not found",
 		)
 
 		# Step 5: Employee Advance (Debit: Employee Advance 20000, Credit: Bank 20000)
@@ -360,6 +375,7 @@ class Day3Checker(BaseChecker):
 			"Journal Entry: Employee Advance (₹20,000)",
 			je_advance is not None,
 			expected="Debit Employee Advance 20,000 / Credit Bank 20,000",
+			actual="Found" if je_advance is not None else "Not found",
 		)
 
 	# ── BOM Creation ───────────────────────────────────────────
@@ -377,6 +393,7 @@ class Day3Checker(BaseChecker):
 			section,
 			"At least one submitted BOM exists",
 			len(bom_list) > 0,
+			expected="Yes", actual="Yes" if len(bom_list) > 0 else "No",
 		)
 
 		if bom_list:
@@ -386,17 +403,20 @@ class Day3Checker(BaseChecker):
 					section,
 					"BOM has raw materials (items in BOM)",
 					len(bom.get("items", [])) > 0,
+					expected="Yes",
 					actual=f"{len(bom.get('items', []))} items" if bom.get("items") else "0 items",
 				)
 				self.check(
 					section,
 					"BOM is active",
 					bom.get("is_active") == 1,
+					expected="Yes", actual="Yes" if bom.get("is_active") == 1 else "No",
 				)
 				self.check(
 					section,
 					"BOM is default",
 					bom.get("is_default") == 1,
+					expected="Yes", actual="Yes" if bom.get("is_default") == 1 else "No",
 				)
 			else:
 				for name in ["BOM has raw materials (items in BOM)", "BOM is active", "BOM is default"]:

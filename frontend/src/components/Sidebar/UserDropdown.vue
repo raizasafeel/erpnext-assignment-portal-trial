@@ -68,7 +68,7 @@ import { computed, markRaw } from "vue"
 import { sessionStore } from "@/stores/session"
 import { usersStore } from "@/stores/user"
 import Apps from "./Apps.vue"
-import { ChevronDown, LogOut } from "lucide-vue-next"
+import { ChevronDown, LogOut, Sun, Moon } from "lucide-vue-next"
 import PortalLogo from "@/components/Icons/PortalLogo.vue"
 
 defineProps({
@@ -90,6 +90,16 @@ const isSystemUser = computed(() => {
 	return cookies.get("system_user") === "yes"
 })
 
+function isDark() {
+	return document.documentElement.getAttribute("data-theme") === "dark"
+}
+
+function toggleTheme() {
+	const next = isDark() ? "light" : "dark"
+	document.documentElement.setAttribute("data-theme", next)
+	localStorage.setItem("ap_theme", next)
+}
+
 const userDropdownOptions = computed(() => {
 	const items = []
 
@@ -98,6 +108,12 @@ const userDropdownOptions = computed(() => {
 			component: markRaw(Apps),
 		})
 	}
+
+	items.push({
+		icon: isDark() ? Sun : Moon,
+		label: isDark() ? "Light mode" : "Dark mode",
+		onClick: toggleTheme,
+	})
 
 	items.push({
 		icon: LogOut,

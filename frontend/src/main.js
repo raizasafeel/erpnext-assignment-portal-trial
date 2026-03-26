@@ -22,6 +22,12 @@ import {
 
 import "./index.css"
 
+// Initialize theme from localStorage
+const savedTheme = localStorage.getItem("ap_theme")
+if (savedTheme) {
+	document.documentElement.setAttribute("data-theme", savedTheme)
+}
+
 const globalComponents = {
 	Button,
 	TextInput,

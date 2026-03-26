@@ -1,30 +1,26 @@
 <template>
   <AppLayout>
-    <div class="p-8 max-w-2xl">
-      <h2 class="text-2xl font-bold text-ink-gray-9 mb-1">Site Setup</h2>
-      <p class="text-ink-gray-5 mb-8">Connect your ERPNext demo site so we can check your assignments.</p>
+    <div class="p-6 sm:p-8 w-full">
+      <h2 class="text-2xl font-bold text-ink-gray-9">Site Setup</h2>
+      <p class="mt-1 text-base text-ink-gray-5 mb-8">Connect your ERPNext demo site so we can check your assignments.</p>
 
-      <div v-if="sites.data?.length" class="mb-8 space-y-3">
-        <div
-          v-for="site in sites.data"
-          :key="site.name"
-          class="flex items-center justify-between p-4 bg-surface-white rounded-lg border"
-        >
+      <div v-if="siteStore.hasSite" class="mb-8">
+        <div class="flex items-center justify-between p-4 rounded-lg border border-outline-gray-2 bg-surface-white">
           <div class="flex items-center gap-3">
             <div
               class="w-2.5 h-2.5 rounded-full"
-              :class="site.connection_status === 'Connected' ? 'bg-green-500' : site.connection_status === 'Failed' ? 'bg-red-500' : 'bg-gray-300'"
+              :class="siteStore.site.connection_status === 'Connected' ? 'bg-green-500' : siteStore.site.connection_status === 'Failed' ? 'bg-red-500' : 'bg-gray-300'"
             />
             <div>
-              <div class="font-medium text-ink-gray-9">{{ site.site_url }}</div>
-              <div class="text-sm text-ink-gray-5">{{ site.site_username }}</div>
+              <div class="font-medium text-ink-gray-9">{{ siteStore.site.site_url }}</div>
+              <div class="text-sm text-ink-gray-5 mt-0.5">{{ siteStore.site.site_username }}</div>
             </div>
           </div>
           <div class="flex items-center gap-2">
             <Button
               size="sm"
-              :loading="testingConnection === site.name"
-              @click="testConnection(site.name)"
+              :loading="testingConnection"
+              @click="testConnection(siteStore.siteName)"
             >
               Test
             </Button>
@@ -32,7 +28,7 @@
               size="sm"
               variant="ghost"
               theme="red"
-              @click="deleteSite(site.name)"
+              @click="deleteSite(siteStore.siteName)"
             >
               Remove
             </Button>
@@ -40,86 +36,51 @@
         </div>
       </div>
 
-      <div class="p-6 bg-surface-white rounded-lg border">
-        <h3 class="font-semibold text-ink-gray-9 mb-4">Add ERPNext Site</h3>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-ink-gray-7 mb-1">
-              Site URL <span class="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              v-model="form.site_url"
-              placeholder="https://your-site.erpnext.com"
-              class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-              :class="fieldErrors.site_url ? 'border-red-500 bg-red-50' : 'border-outline-gray-2'"
-            />
-            <p v-if="fieldErrors.site_url" class="text-xs text-red-600 mt-1">{{ fieldErrors.site_url }}</p>
-            <p v-else class="text-xs text-ink-gray-4 mt-1">Enter the full URL of your ERPNext demo site</p>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-ink-gray-7 mb-1">
-              Username <span class="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              v-model="form.site_username"
-              placeholder="admin@example.com"
-              class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-              :class="fieldErrors.site_username ? 'border-red-500 bg-red-50' : 'border-outline-gray-2'"
-            />
-            <p v-if="fieldErrors.site_username" class="text-xs text-red-600 mt-1">{{ fieldErrors.site_username }}</p>
-            <p v-else class="text-xs text-ink-gray-4 mt-1">Enter the email address you use to log in to your ERPNext site</p>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-ink-gray-7 mb-1">
-              Password <span class="text-red-500">*</span>
-            </label>
-            <input
-              type="password"
-              v-model="form.site_password"
-              placeholder="Your site password"
-              class="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-              :class="fieldErrors.site_password ? 'border-red-500 bg-red-50' : 'border-outline-gray-2'"
-            />
-            <p v-if="fieldErrors.site_password" class="text-xs text-red-600 mt-1">{{ fieldErrors.site_password }}</p>
-            <p v-else class="text-xs text-ink-gray-4 mt-1">Enter your ERPNext site password</p>
-          </div>
+      <div class="p-6 rounded-lg border border-outline-gray-2 bg-surface-white">
+        <h3 class="font-semibold text-ink-gray-9 mb-6">Add ERPNext Site</h3>
+        <div class="space-y-5">
+          <FormControl
+            v-model="form.site_url"
+            type="text"
+            label="Site URL"
+            placeholder="https://your-site.erpnext.com"
+            :description="fieldErrors.site_url || 'Enter the full URL of your ERPNext demo site'"
+            required
+          />
+          <FormControl
+            v-model="form.site_username"
+            type="text"
+            label="Username"
+            placeholder="admin@example.com"
+            :description="fieldErrors.site_username || 'Enter the email address you use to log in to your ERPNext site'"
+            required
+          />
+          <FormControl
+            v-model="form.site_password"
+            type="password"
+            label="Password"
+            placeholder="Your site password"
+            :description="fieldErrors.site_password || 'Enter your ERPNext site password'"
+            required
+          />
 
-          <div class="flex items-start gap-2 pt-2">
-            <input
-              id="consent"
-              type="checkbox"
-              v-model="consentGiven"
-              class="mt-0.5 h-4 w-4 rounded text-ink-gray-9 focus:ring-gray-900"
-              :class="fieldErrors.consent ? 'border-red-500 ring-2 ring-red-500' : 'border-outline-gray-2'"
-            />
-            <label for="consent" class="text-sm leading-tight" :class="fieldErrors.consent ? 'text-red-600' : 'text-ink-gray-5'">
-              By providing these credentials, I consent to the Assignment Portal
-              accessing my site in read-only mode to verify my assignment completion.
-              No data will be modified on my site.
-              <span class="text-red-500">*</span>
-            </label>
-          </div>
+          <Checkbox
+            v-model="consentGiven"
+            label="By providing these credentials, I consent to the Assignment Portal accessing my site in read-only mode to verify my assignment completion. No data will be modified on my site."
+          />
 
           <ErrorMessage v-if="createError" :message="createError" />
 
-          <div class="flex gap-2">
-            <Button variant="solid" :loading="creating" @click="addSite">
-              Save & Test Connection
-            </Button>
-          </div>
+          <Button variant="solid" :loading="creating" @click="addSite">
+            Save & Test Connection
+          </Button>
         </div>
       </div>
 
-      <div v-if="testResult" class="mt-4 p-4 rounded-lg border" :class="testResult.status === 'Connected' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'">
-        <div class="flex items-center gap-2">
-          <CheckCircle2 v-if="testResult.status === 'Connected'" class="w-5 h-5 text-green-600" />
-          <XCircle v-else class="w-5 h-5 text-red-600" />
-          <span :class="testResult.status === 'Connected' ? 'text-green-800' : 'text-red-800'" class="font-medium">
-            {{ testResult.status === "Connected" ? `Connected as ${testResult.user}` : `Failed: ${testResult.error}` }}
-          </span>
-        </div>
+      <div v-if="testResult" class="mt-6">
+        <Alert :type="testResult.status === 'Connected' ? 'success' : 'error'">
+          {{ testResult.status === "Connected" ? `Connected as ${testResult.user}` : `Failed: ${testResult.error}` }}
+        </Alert>
       </div>
     </div>
   </AppLayout>
@@ -128,17 +89,12 @@
 <script setup>
 import { ref, reactive } from "vue"
 import { useRouter } from "vue-router"
-import { createListResource, call, toast } from "frappe-ui"
-import { CheckCircle2, XCircle } from "lucide-vue-next"
+import { call, toast, Checkbox } from "frappe-ui"
 import AppLayout from "@/components/AppLayout.vue"
+import { useSiteStore } from "@/stores/site"
 
 const router = useRouter()
-
-const sites = createListResource({
-  doctype: "ERPNext Site",
-  fields: ["name", "site_url", "site_username", "connection_status"],
-  auto: true,
-})
+const siteStore = useSiteStore()
 
 const form = reactive({
   site_url: "",
@@ -150,12 +106,11 @@ const fieldErrors = reactive({
   site_url: "",
   site_username: "",
   site_password: "",
-  consent: false,
 })
 
 const creating = ref(false)
 const createError = ref("")
-const testingConnection = ref(null)
+const testingConnection = ref(false)
 const testResult = ref(null)
 const consentGiven = ref(false)
 
@@ -163,7 +118,6 @@ function clearFieldErrors() {
   fieldErrors.site_url = ""
   fieldErrors.site_username = ""
   fieldErrors.site_password = ""
-  fieldErrors.consent = false
 }
 
 function validateForm() {
@@ -187,7 +141,6 @@ function validateForm() {
     valid = false
   }
   if (!consentGiven.value) {
-    fieldErrors.consent = true
     missing.push("Consent")
     valid = false
   }
@@ -213,27 +166,24 @@ async function addSite() {
       site_password: form.site_password,
     })
 
-    // Test connection
     const result = await call("erpnext_assignment_portal.api.test_connection", {
       site_name: doc.name,
     })
     testResult.value = result
 
-    // Reset form
     form.site_url = ""
     form.site_username = ""
     form.site_password = ""
     consentGiven.value = false
     clearFieldErrors()
 
-    sites.reload()
+    siteStore.reload()
 
     if (result.status === "Connected") {
       toast.success("Site connected! Redirecting to Day 1 assignment...")
       setTimeout(() => router.push("/day/1"), 1500)
     }
   } catch (err) {
-    console.error("addSite error:", err)
     createError.value =
       err?.messages?.[0] ||
       err?.exc_type ||
@@ -246,14 +196,14 @@ async function addSite() {
 }
 
 async function testConnection(siteName) {
-  testingConnection.value = siteName
+  testingConnection.value = true
   testResult.value = null
   try {
     const result = await call("erpnext_assignment_portal.api.test_connection", {
       site_name: siteName,
     })
     testResult.value = result
-    sites.reload()
+    siteStore.reload()
     if (result.status === "Connected") {
       toast.success(`Connected successfully as ${result.user}`)
     } else {
@@ -263,7 +213,7 @@ async function testConnection(siteName) {
     testResult.value = { status: "Failed", error: err.message }
     toast.error(`Connection failed: ${err.message}`)
   } finally {
-    testingConnection.value = null
+    testingConnection.value = false
   }
 }
 
@@ -272,7 +222,7 @@ async function deleteSite(siteName) {
     await call("erpnext_assignment_portal.api.delete_site", {
       site_name: siteName,
     })
-    sites.reload()
+    siteStore.reload()
     testResult.value = null
     toast.success("Site removed successfully")
   } catch (err) {

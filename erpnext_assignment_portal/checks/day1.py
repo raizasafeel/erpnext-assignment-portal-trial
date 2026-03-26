@@ -1,4 +1,4 @@
-from erpnext_assignment_portal.checks.base import BaseChecker
+from erpnext_assignment_portal.checks.base import BaseChecker, normalize
 
 COMPANY_NAME = "Greenfield Trading & Services Pvt. Ltd."
 COMPANY_ABBR = "GTS"
@@ -16,7 +16,7 @@ class Day1Checker(BaseChecker):
 		self.check_accounting_masters()
 		return self.get_summary()
 
-	# ── Company Setup ──────────────────────────────────────────
+	# Company Setup ──
 
 	def check_company(self):
 		section = "Company Setup"
@@ -29,7 +29,7 @@ class Day1Checker(BaseChecker):
 			message="" if company else f"You haven't created the company '{COMPANY_NAME}' yet. Go to Company list and create it.",
 		)
 		if not company:
-			for name in ["Abbreviation is GTS", "Default Cost Center set", "Default Warehouse set", "Default Currency set", "Country set"]:
+			for name in ["Abbreviation is GTS", "Default Cost Center set", "Default Warehouse set", "Default Currency set", "Country set", "Chart of Accounts template is set"]:
 				self.check(section, name, False, message=f"Cannot check — company '{COMPANY_NAME}' not found.")
 			return
 
@@ -42,6 +42,7 @@ class Day1Checker(BaseChecker):
 		self.check(
 			section, "Default Cost Center set",
 			bool(company.get("cost_center")),
+			expected="Any cost center",
 			actual=company.get("cost_center", "Not set"),
 			message="" if company.get("cost_center") else "Default Cost Center is not set. Open Company settings and configure it.",
 		)
@@ -51,27 +52,36 @@ class Day1Checker(BaseChecker):
 		self.check(
 			section, "Default Warehouse set",
 			bool(default_wh),
+			expected="Any warehouse",
 			actual=default_wh or "Not set",
 			message="" if default_wh else "Default Warehouse is not set. Go to Stock Settings and set it.",
 		)
 		self.check(
 			section, "Default Currency set",
 			bool(company.get("default_currency")),
+			expected="Any currency",
 			actual=company.get("default_currency", "Not set"),
 			message="" if company.get("default_currency") else "Default Currency is not set. This is usually configured during company creation.",
 		)
 		self.check(
 			section, "Country set",
 			bool(company.get("country")),
+			expected="Any country",
 			actual=company.get("country", "Not set"),
 			message="" if company.get("country") else "Country is not set. Open Company settings and configure it.",
 		)
+		self.check(
+			section, "Chart of Accounts template is set",
+			bool(company.get("chart_of_accounts")),
+			expected="Any template",
+			actual=company.get("chart_of_accounts", "Not set"),
+			message="" if company.get("chart_of_accounts") else "Chart of Accounts template is not set. This is configured during company creation.",
+		)
 
-	# ── Fiscal Year ────────────────────────────────────────────
+	# Fiscal Year 
 
 	def check_fiscal_year(self):
 		section = "Fiscal Year"
-		# Try common naming patterns for FY 2025-26
 		fy = None
 		for name in ["2025-2026", "2025-26", "FY 2025-26", "FY2025-26"]:
 			fy = self.doc_exists("Fiscal Year", name)
@@ -79,7 +89,6 @@ class Day1Checker(BaseChecker):
 				break
 
 		if not fy:
-			# Search by date range
 			fy_list = self.doc_list(
 				"Fiscal Year",
 				filters=[
@@ -99,7 +108,46 @@ class Day1Checker(BaseChecker):
 			message="Checked names: 2025-2026, 2025-26, FY 2025-26" if not fy else "",
 		)
 
-	# ── Customers ──────────────────────────────────────────────
+	# Helpers
+
+	def _has_contact(self, link_doctype, link_name):
+		return bool(self.doc_list(
+			"Contact",
+			filters=[
+				["Dynamic Link", "link_doctype", "=", link_doctype],
+				["Dynamic Link", "link_name", "=", link_name],
+			],
+		))
+
+	def _has_address(self, link_doctype, link_name, address_type=None):
+		addrs = self.doc_list(
+			"Address",
+			filters=[
+				["Dynamic Link", "link_doctype", "=", link_doctype],
+				["Dynamic Link", "link_name", "=", link_name],
+			],
+			fields=["name", "address_type", "is_primary_address", "is_shipping_address"],
+		)
+		if not address_type:
+			return bool(addrs)
+		for a in addrs:
+			if a.get("address_type") == address_type:
+				return True
+			if address_type == "Billing" and a.get("is_primary_address"):
+				return True
+			if address_type == "Shipping" and a.get("is_shipping_address"):
+				return True
+		return False
+
+	def _get_item_price(self, item_code, price_list):
+		prices = self.doc_list(
+			"Item Price",
+			filters={"item_code": item_code, "price_list": price_list, "selling": 1 if "Selling" in price_list else 0, "buying": 1 if "Buying" in price_list else 0},
+			fields=["price_list_rate"],
+		)
+		return prices[0].get("price_list_rate") if prices else None
+
+	# Customers 
 
 	def check_customers(self):
 		section = "Customers"
@@ -133,14 +181,35 @@ class Day1Checker(BaseChecker):
 				c1.get("default_currency") == "USD",
 				expected="USD", actual=c1.get("default_currency", ""),
 			)
+			passed = self._has_address("Customer", "Sunrise Electronics", "Billing")
+			self.check(
+				section, "Sunrise Electronics - has billing address",
+				passed,
+				expected="Yes", actual="Yes" if passed else "No",
+			)
+			passed = self._has_address("Customer", "Sunrise Electronics", "Shipping")
+			self.check(
+				section, "Sunrise Electronics - has shipping address",
+				passed,
+				expected="Yes", actual="Yes" if passed else "No",
+			)
+			passed = self._has_contact("Customer", "Sunrise Electronics")
+			self.check(
+				section, "Sunrise Electronics - has a contact person",
+				passed,
+				expected="Yes", actual="Yes" if passed else "No",
+			)
 		else:
 			for name in [
 				"Sunrise Electronics - Customer Type is Company",
 				"Sunrise Electronics - Customer Group is Commercial",
 				"Sunrise Electronics - Territory is USA",
 				"Sunrise Electronics - Currency is USD",
+				"Sunrise Electronics - has billing address",
+				"Sunrise Electronics - has shipping address",
+				"Sunrise Electronics - has a contact person",
 			]:
-				self.check(section, name, False, message="Cannot check — customer 'Sunrise Electronics' not found.")
+				self.check(section, name, False, message="Cannot check — customer not found.")
 
 		# Customer 2: Bright Future Technologies
 		c2 = self.doc_exists("Customer", "Bright Future Technologies Pvt. Ltd.")
@@ -161,36 +230,35 @@ class Day1Checker(BaseChecker):
 				c2.get("customer_group") == "Commercial",
 				expected="Commercial", actual=c2.get("customer_group", ""),
 			)
+			passed = self._has_address("Customer", "Bright Future Technologies Pvt. Ltd.", "Billing")
+			self.check(
+				section, "Bright Future Technologies - has billing address",
+				passed,
+				expected="Yes", actual="Yes" if passed else "No",
+			)
+			passed = self._has_address("Customer", "Bright Future Technologies Pvt. Ltd.", "Shipping")
+			self.check(
+				section, "Bright Future Technologies - has shipping address",
+				passed,
+				expected="Yes", actual="Yes" if passed else "No",
+			)
+			passed = self._has_contact("Customer", "Bright Future Technologies Pvt. Ltd.")
+			self.check(
+				section, "Bright Future Technologies - has a contact person",
+				passed,
+				expected="Yes", actual="Yes" if passed else "No",
+			)
 		else:
 			for name in [
 				"Bright Future Technologies - Customer Type is Company",
 				"Bright Future Technologies - Customer Group is Commercial",
+				"Bright Future Technologies - has billing address",
+				"Bright Future Technologies - has shipping address",
+				"Bright Future Technologies - has a contact person",
 			]:
-				self.check(section, name, False, message="Cannot check — customer 'Bright Future Technologies Pvt. Ltd.' not found.")
+				self.check(section, name, False, message="Cannot check — customer not found.")
 
-		# Check for at least one address linked to any customer
-		addr_links = self.doc_list(
-			"Dynamic Link",
-			filters={"link_doctype": "Customer", "parenttype": "Address"},
-			fields=["name"],
-		)
-		self.check(
-			section, "At least one customer has a billing/shipping address",
-			len(addr_links) > 0,
-		)
-
-		# Check for at least one contact linked to any customer
-		contact_links = self.doc_list(
-			"Dynamic Link",
-			filters={"link_doctype": "Customer", "parenttype": "Contact"},
-			fields=["name"],
-		)
-		self.check(
-			section, "At least one customer has a contact person",
-			len(contact_links) > 0,
-		)
-
-	# ── Suppliers ──────────────────────────────────────────────
+	# Suppliers 
 
 	def check_suppliers(self):
 		section = "Suppliers"
@@ -214,12 +282,26 @@ class Day1Checker(BaseChecker):
 				s1.get("country") == "India",
 				expected="India", actual=s1.get("country", ""),
 			)
+			passed = self._has_address("Supplier", "TechSource Distributors")
+			self.check(
+				section, "TechSource Distributors - has an address",
+				passed,
+				expected="Yes", actual="Yes" if passed else "No",
+			)
+			passed = self._has_contact("Supplier", "TechSource Distributors")
+			self.check(
+				section, "TechSource Distributors - has a contact person",
+				passed,
+				expected="Yes", actual="Yes" if passed else "No",
+			)
 		else:
 			for name in [
 				"TechSource Distributors - Supplier Group is Local",
 				"TechSource Distributors - Country is India",
+				"TechSource Distributors - has an address",
+				"TechSource Distributors - has a contact person",
 			]:
-				self.check(section, name, False, message="Cannot check — supplier 'TechSource Distributors' not found.")
+				self.check(section, name, False, message="Cannot check — supplier not found.")
 
 		# Supplier 2: Global Components Ltd.
 		s2 = self.doc_exists("Supplier", "Global Components Ltd.")
@@ -240,249 +322,288 @@ class Day1Checker(BaseChecker):
 				s2.get("default_currency") == "USD",
 				expected="USD", actual=s2.get("default_currency", ""),
 			)
+			passed = self._has_address("Supplier", "Global Components Ltd.")
+			self.check(
+				section, "Global Components Ltd. - has an address",
+				passed,
+				expected="Yes", actual="Yes" if passed else "No",
+			)
+			passed = self._has_contact("Supplier", "Global Components Ltd.")
+			self.check(
+				section, "Global Components Ltd. - has a contact person",
+				passed,
+				expected="Yes", actual="Yes" if passed else "No",
+			)
 		else:
 			for name in [
 				"Global Components Ltd. - Supplier Group is International",
 				"Global Components Ltd. - Currency is USD",
+				"Global Components Ltd. - has an address",
+				"Global Components Ltd. - has a contact person",
 			]:
-				self.check(section, name, False, message="Cannot check — supplier 'Global Components Ltd.' not found.")
+				self.check(section, name, False, message="Cannot check — supplier not found.")
 
-		# Check for address and contact linked to suppliers
-		addr_links = self.doc_list(
-			"Dynamic Link",
-			filters={"link_doctype": "Supplier", "parenttype": "Address"},
-			fields=["name"],
-		)
+	# Items 
+
+	def _check_item(self, section, item_code, label, checks, not_found_names):
+		item = self.doc_exists("Item", item_code)
 		self.check(
-			section, "At least one supplier has an address",
-			len(addr_links) > 0,
+			section, f"{label} exists", item is not None,
+			expected=item_code,
+			actual=item_code if item else "Not found",
+			message="" if item else f"You haven't created item '{item_code}'.",
 		)
-
-		contact_links = self.doc_list(
-			"Dynamic Link",
-			filters={"link_doctype": "Supplier", "parenttype": "Contact"},
-			fields=["name"],
-		)
-		self.check(
-			section, "At least one supplier has a contact person",
-			len(contact_links) > 0,
-		)
-
-	# ── Items ──────────────────────────────────────────────────
+		if not item:
+			for name in not_found_names:
+				self.check(section, name, False, message="Cannot check — item not found.")
+			return
+		for check_fn in checks:
+			check_fn(item)
 
 	def check_items(self):
 		section = "Items"
 
 		# Item 1: LED Monitor 24 inch
-		item1 = self.doc_exists("Item", "LED Monitor 24 inch")
-		self.check(
-			section, "LED Monitor 24 inch exists", item1 is not None,
-			expected="LED Monitor 24 inch",
-			actual="LED Monitor 24 inch" if item1 else "Not found",
-			message="" if item1 else "You haven't created item 'LED Monitor 24 inch'. Go to Item list and create it.",
-		)
-		if item1:
-			self.check(
-				section, "LED Monitor - Item Group is Products",
-				item1.get("item_group") == "Products",
-				expected="Products", actual=item1.get("item_group", ""),
-			)
-			self.check(
-				section, "LED Monitor - Maintain Stock is Yes",
-				item1.get("is_stock_item") == 1,
-				expected="Yes", actual="Yes" if item1.get("is_stock_item") else "No",
-			)
-			self.check(
-				section, "LED Monitor - Stock UOM is Nos",
-				item1.get("stock_uom") in ("Nos", "nos", "Numbers"),
-				expected="Nos", actual=item1.get("stock_uom", ""),
-			)
-			self.check(
-				section, "LED Monitor - Valuation Method is FIFO",
-				item1.get("valuation_method") == "FIFO",
-				expected="FIFO", actual=item1.get("valuation_method", ""),
-			)
-		else:
-			for name in [
-				"LED Monitor - Item Group is Products",
-				"LED Monitor - Maintain Stock is Yes",
-				"LED Monitor - Stock UOM is Nos",
-				"LED Monitor - Valuation Method is FIFO",
-			]:
-				self.check(section, name, False, message="Cannot check — item not found.")
+		def item1_checks(item):
+			self.check(section, "LED Monitor - Item Group is Products",
+				item.get("item_group") == "Products",
+				expected="Products", actual=item.get("item_group", ""))
+			self.check(section, "LED Monitor - Maintain Stock is Yes",
+				item.get("is_stock_item") == 1,
+				expected="Yes", actual="Yes" if item.get("is_stock_item") else "No")
+			self.check(section, "LED Monitor - Stock UOM is Nos",
+				item.get("stock_uom") in ("Nos", "nos", "Numbers"),
+				expected="Nos", actual=item.get("stock_uom", ""))
+			self.check(section, "LED Monitor - Valuation Method is FIFO",
+				item.get("valuation_method") == "FIFO",
+				expected="FIFO", actual=item.get("valuation_method", ""))
+			val_rate = item.get("valuation_rate", 0)
+			self.check(section, "LED Monitor - Valuation Rate is 5000",
+				val_rate == 5000,
+				expected="5000", actual=str(val_rate))
+
+		self._check_item(section, "LED Monitor 24 inch", "LED Monitor 24 inch", [item1_checks], [
+			"LED Monitor - Item Group is Products",
+			"LED Monitor - Maintain Stock is Yes",
+			"LED Monitor - Stock UOM is Nos",
+			"LED Monitor - Valuation Method is FIFO",
+			"LED Monitor - Valuation Rate is 5000",
+		])
 
 		# Item 2: Wireless Keyboard (KB-WL)
-		item2 = self.doc_exists("Item", "KB-WL")
-		self.check(
-			section, "Wireless Keyboard (KB-WL) exists", item2 is not None,
-			expected="KB-WL",
-			actual="KB-WL" if item2 else "Not found",
-			message="" if item2 else "You haven't created item with code 'KB-WL'. Go to Item list and create it with Item Code: KB-WL.",
-		)
-		if item2:
-			self.check(
-				section, "KB-WL - Item Name is Wireless Keyboard",
-				item2.get("item_name") == "Wireless Keyboard",
-				expected="Wireless Keyboard", actual=item2.get("item_name", ""),
-			)
-			self.check(
-				section, "KB-WL - Maintain Stock is Yes",
-				item2.get("is_stock_item") == 1,
-				expected="Yes", actual="Yes" if item2.get("is_stock_item") else "No",
-			)
-		else:
-			for name in [
-				"KB-WL - Item Name is Wireless Keyboard",
-				"KB-WL - Maintain Stock is Yes",
-			]:
-				self.check(section, name, False, message="Cannot check — item not found.")
+		def item2_checks(item):
+			self.check(section, "KB-WL - Item Name is Wireless Keyboard",
+				item.get("item_name") == "Wireless Keyboard",
+				expected="Wireless Keyboard", actual=item.get("item_name", ""))
+			self.check(section, "KB-WL - Maintain Stock is Yes",
+				item.get("is_stock_item") == 1,
+				expected="Yes", actual="Yes" if item.get("is_stock_item") else "No")
+			self.check(section, "KB-WL - Stock UOM is Nos",
+				item.get("stock_uom") in ("Nos", "nos", "Numbers"),
+				expected="Nos", actual=item.get("stock_uom", ""))
+			selling = self._get_item_price("KB-WL", "Standard Selling")
+			self.check(section, "KB-WL - Standard Selling Price is 1200",
+				selling == 1200,
+				expected="1200", actual=str(selling) if selling else "Not set")
+			buying = self._get_item_price("KB-WL", "Standard Buying")
+			self.check(section, "KB-WL - Standard Buying Price is 800",
+				buying == 800,
+				expected="800", actual=str(buying) if buying else "Not set")
+
+		self._check_item(section, "KB-WL", "Wireless Keyboard (KB-WL)", [item2_checks], [
+			"KB-WL - Item Name is Wireless Keyboard",
+			"KB-WL - Maintain Stock is Yes",
+			"KB-WL - Stock UOM is Nos",
+			"KB-WL - Standard Selling Price is 1200",
+			"KB-WL - Standard Buying Price is 800",
+		])
 
 		# Item 3: Installation Service (SERV-INST)
-		item3 = self.doc_exists("Item", "SERV-INST")
-		self.check(
-			section, "Installation Service (SERV-INST) exists", item3 is not None,
-			expected="SERV-INST",
-			actual="SERV-INST" if item3 else "Not found",
-			message="" if item3 else "You haven't created item with code 'SERV-INST'. Go to Item list and create it with Item Code: SERV-INST.",
-		)
-		if item3:
-			self.check(
-				section, "SERV-INST - Item Group is Services",
-				item3.get("item_group") == "Services",
-				expected="Services", actual=item3.get("item_group", ""),
-			)
-			self.check(
-				section, "SERV-INST - Maintain Stock is No",
-				item3.get("is_stock_item") == 0,
-				expected="No", actual="No" if not item3.get("is_stock_item") else "Yes",
-			)
-		else:
-			for name in [
-				"SERV-INST - Item Group is Services",
-				"SERV-INST - Maintain Stock is No",
-			]:
-				self.check(section, name, False, message="Cannot check — item not found.")
+		def item3_checks(item):
+			self.check(section, "SERV-INST - Item Group is Services",
+				item.get("item_group") == "Services",
+				expected="Services", actual=item.get("item_group", ""))
+			self.check(section, "SERV-INST - Maintain Stock is No",
+				item.get("is_stock_item") == 0,
+				expected="No", actual="No" if not item.get("is_stock_item") else "Yes")
+			defaults = item.get("item_defaults", [])
+			income_acct = ""
+			for d in defaults:
+				if d.get("income_account"):
+					income_acct = d.get("income_account", "")
+					break
+			expected_acct = f"Service - {COMPANY_ABBR}"
+			self.check(section, "SERV-INST - Income Account is Service Income",
+				income_acct == expected_acct,
+				expected=expected_acct, actual=income_acct or "Not set")
+			selling = self._get_item_price("SERV-INST", "Standard Selling")
+			self.check(section, "SERV-INST - Standard Selling Price is 1500",
+				selling == 1500,
+				expected="1500", actual=str(selling) if selling else "Not set")
+
+		self._check_item(section, "SERV-INST", "Installation Service (SERV-INST)", [item3_checks], [
+			"SERV-INST - Item Group is Services",
+			"SERV-INST - Maintain Stock is No",
+			"SERV-INST - Income Account is Service Income",
+			"SERV-INST - Standard Selling Price is 1500",
+		])
 
 		# Item 4: AMC (SERV-AMC)
-		item4 = self.doc_exists("Item", "SERV-AMC")
-		self.check(
-			section, "Annual Maintenance Contract (SERV-AMC) exists", item4 is not None,
-			expected="SERV-AMC",
-			actual="SERV-AMC" if item4 else "Not found",
-			message="" if item4 else "You haven't created item with code 'SERV-AMC'. Go to Item list and create it with Item Code: SERV-AMC.",
-		)
-		if item4:
-			self.check(
-				section, "SERV-AMC - Maintain Stock is No",
-				item4.get("is_stock_item") == 0,
-				expected="No", actual="No" if not item4.get("is_stock_item") else "Yes",
-			)
-		else:
-			self.check(section, "SERV-AMC - Maintain Stock is No", False, message="Cannot check — item not found.")
+		def item4_checks(item):
+			self.check(section, "SERV-AMC - Maintain Stock is No",
+				item.get("is_stock_item") == 0,
+				expected="No", actual="No" if not item.get("is_stock_item") else "Yes")
+			selling = self._get_item_price("SERV-AMC", "Standard Selling")
+			self.check(section, "SERV-AMC - Standard Selling Price is 5000",
+				selling == 5000,
+				expected="5000", actual=str(selling) if selling else "Not set")
 
-	# ── Warehouses ─────────────────────────────────────────────
+		self._check_item(section, "SERV-AMC", "Annual Maintenance Contract (SERV-AMC)", [item4_checks], [
+			"SERV-AMC - Maintain Stock is No",
+			"SERV-AMC - Standard Selling Price is 5000",
+		])
+
+	# Warehouses ─
 
 	def check_warehouses(self):
 		section = "Warehouses"
 
-		# Get all warehouses for the company
 		all_warehouses = self.doc_list(
 			"Warehouse",
 			filters={"company": COMPANY_NAME},
 			fields=["name", "parent_warehouse", "warehouse_name"],
 			limit_page_length=200,
 		)
-		wh_names = [w.get("warehouse_name", w.get("name", "")) for w in all_warehouses]
-		# Also check the full name with abbreviation suffix
-		wh_full_names = [w.get("name", "") for w in all_warehouses]
 
-		def wh_exists(name):
-			return (
-				name in wh_names
-				or f"{name} - {COMPANY_ABBR}" in wh_full_names
-				or any(name.lower() in n.lower() for n in wh_full_names)
-			)
+		# Build lookup: {warehouse_name: [parent_warehouse_name, ...]}
+		wh_by_name: dict[str, list[str]] = {}
+		for w in all_warehouses:
+			wh_name = w.get("warehouse_name", "")
+			parent = w.get("parent_warehouse", "")
+			wh_by_name.setdefault(wh_name, []).append(parent)
 
-		# Mumbai Warehouse hierarchy
+		def wh_exists(name, parent_name=None):
+			parents = wh_by_name.get(name, [])
+			if not parents:
+				return False
+			if parent_name is None:
+				return True
+			expected_parent = f"{parent_name} - {COMPANY_ABBR}"
+			return any(p == expected_parent for p in parents)
+
+		# (check label, warehouse name, required parent or None for top-level)
 		warehouses_to_check = [
-			("Mumbai Warehouse exists", "Mumbai Warehouse"),
-			("Raw Material Store exists", "Raw Material Store"),
-			("Finished Goods Store exists", "Finished Goods Store"),
-			("WIP Warehouse exists", "WIP"),
-			("Scrap Warehouse exists", "Scrap"),
-			("Pune Warehouse exists", "Pune Warehouse"),
-			("Pune - Trading Stock exists", "Trading Stock"),
-			("Pune - Damaged Goods exists", "Damaged Goods"),
-			("Delhi Warehouse exists", "Delhi Warehouse"),
+			("Mumbai Warehouse", "Mumbai Warehouse", None),
+			("Mumbai - Raw Material Store", "Raw Material", "Mumbai Warehouse"),
+			("Mumbai - Finished Goods Store", "Finished Goods", "Mumbai Warehouse"),
+			("Mumbai - WIP", "Work in Progress", "Mumbai Warehouse"),
+			("Mumbai - Scrap", "Scrap", "Mumbai Warehouse"),
+			("Pune Warehouse", "Pune Warehouse", None),
+			("Pune - Trading Stock", "Pune Trading Stock", "Pune Warehouse"),
+			("Pune - Damaged Goods", "Pune Damaged Goods", "Pune Warehouse"),
+			("Delhi Warehouse", "Delhi Warehouse", None),
+			("Delhi - Trading Stock", "Delhi Trading Stock", "Delhi Warehouse"),
+			("Delhi - Damaged Goods", "Delhi Damaged Goods", "Delhi Warehouse"),
 		]
-		for check_name, wh_name in warehouses_to_check:
-			found = wh_exists(wh_name)
+		for check_label, wh_name, parent_name in warehouses_to_check:
+			found = wh_exists(wh_name, parent_name)
+			expected = f"{wh_name} under {parent_name}" if parent_name else wh_name
 			self.check(
-				section, check_name, found,
-				expected=wh_name,
-				actual=wh_name if found else "Not found",
-				message="" if found else f"You haven't created warehouse '{wh_name}'. Go to Warehouse list and create it under the correct parent.",
+				section, check_label, found,
+				expected=expected,
+				actual=expected if found else "Not found",
+				message="" if found else f"Warehouse '{wh_name}' not found{f' under {parent_name}' if parent_name else ''}.",
 			)
 
-	# ── Users & Roles ──────────────────────────────────────────
+	# Users & Roles ──
 
 	def check_users(self):
 		section = "Users & Roles"
 
-		users_config = {
-			"sales@greenfield.com": {
-				"name": "Rahul Sharma",
-				"roles": ["Sales User"],
-			},
-			"purchase@greenfield.com": {
-				"name": "Neha Verma",
-				"roles": ["Purchase User"],
-			},
-			"accounts@greenfield.com": {
-				"name": "Asmita Hodge",
-				"roles": ["Accounts User", "Accounts Manager"],
-			},
-			"store@greenfield.com": {
-				"name": "Mihir Nikam",
-				"roles": ["Stock User", "Stock Manager"],
-			},
-			"hr@greenfield.com": {
-				"name": "Kavita Rao",
-				"roles": ["HR User", "HR Manager"],
-			},
-			"md@greenfield.com": {
-				"name": "Kiran Rao",
-				"roles": ["System Manager", "Accounts Manager", "Sales Manager"],
-			},
+		role_profiles = {
+			"Sales Executive": ["Sales User"],
+			"Purchase Officer": ["Purchase User", "Stock User"],
+			"Accountant": ["Accounts User", "Accounts Manager"],
+			"Store Manager": ["Stock User", "Stock Manager"],
+			"HR Manager": ["HR User", "HR Manager"],
+			"Managing Director": ["System Manager", "Accounts Manager", "Sales Manager"],
 		}
 
-		for email, config in users_config.items():
-			user = self.doc_exists("User", email)
+		users_config = [
+			{"email": "sales@greenfield.com", "first_name": "Rahul", "last_name": "Sharma", "profile": "Sales Executive"},
+			{"email": "purchase@greenfield.com", "first_name": "Neha", "last_name": "Verma", "profile": "Purchase Officer"},
+			{"email": "accounts@greenfield.com", "first_name": "Asmita", "last_name": "Hodge", "profile": "Accountant"},
+			{"email": "store@greenfield.com", "first_name": "Mihir", "last_name": "Nikam", "profile": "Store Manager"},
+			{"email": "hr@greenfield.com", "first_name": "Kavita", "last_name": "Rao", "profile": "HR Manager"},
+			{"email": "md@greenfield.com", "first_name": "Kiran", "last_name": "Rao", "profile": "Managing Director"},
+		]
+
+		# Step 1 & 2: Check Role Profiles exist and have the right roles
+		for profile_name, expected_roles in role_profiles.items():
+			profile = self.doc_exists("Role Profile", profile_name)
 			self.check(
-				section, f"User {email} exists",
-				user is not None,
-				expected=email,
-				actual=email if user else "Not found",
-				message="" if user else f"You haven't created user '{email}'. Go to User list and create this user.",
+				section, f"Role Profile '{profile_name}' exists",
+				profile is not None,
+				expected=profile_name, actual=profile_name if profile else "Not found",
 			)
-			if user:
-				# Check roles
-				user_roles = [r.get("role") for r in user.get("roles", [])]
-				missing_roles = [r for r in config["roles"] if r not in user_roles]
+			if profile:
+				profile_roles = [r.get("role") for r in profile.get("roles", [])]
+				missing = [r for r in expected_roles if r not in profile_roles]
+				extra = [r for r in profile_roles if r not in expected_roles]
 				self.check(
-					section, f"{email} has required roles ({', '.join(config['roles'])})",
-					len(missing_roles) == 0,
-					expected=", ".join(config["roles"]),
-					actual=", ".join(user_roles) if user_roles else "No roles",
-					message=f"Missing roles: {', '.join(missing_roles)}. Open the user and add these roles." if missing_roles else "",
+					section, f"Role Profile '{profile_name}' has all required roles",
+					not missing,
+					expected=", ".join(expected_roles),
+					actual=", ".join(profile_roles) if profile_roles else "No roles",
+					message=f"Missing: {', '.join(missing)}" if missing else "",
+				)
+				self.check(
+					section, f"Role Profile '{profile_name}' has no extra roles",
+					not extra,
+					expected=", ".join(expected_roles),
+					actual=", ".join(profile_roles),
+					message=f"Extra roles: {', '.join(extra)}. Remove them." if extra else "",
 				)
 			else:
-				self.check(
-					section, f"{email} has required roles ({', '.join(config['roles'])})",
-					False, message=f"Cannot check roles — user '{email}' not found.",
-				)
+				for name in [
+					f"Role Profile '{profile_name}' has all required roles",
+					f"Role Profile '{profile_name}' has no extra roles",
+				]:
+					self.check(section, name, False, message=f"Cannot check — Role Profile '{profile_name}' not found.")
 
-	# ── Accounting Masters ─────────────────────────────────────
+		# Step 3 & 4: Check users exist with correct name and profile
+		for u in users_config:
+			email = u["email"]
+			full_name = f"{u['first_name']} {u['last_name']}"
+			profile_name = u["profile"]
+
+			user = self.doc_exists("User", email)
+			self.check(section, f"User {email} exists", user is not None,
+				expected=email, actual=email if user else "Not found")
+
+			if not user:
+				for name in [
+					f"{email} - name is {full_name}",
+					f"{email} - has Role Profile '{profile_name}'",
+				]:
+					self.check(section, name, False, message="Cannot check — user not found.")
+				continue
+
+			actual_name = f"{user.get('first_name', '')} {user.get('last_name', '')}".strip()
+			self.check(
+				section, f"{email} - name is {full_name}",
+				user.get("first_name") == u["first_name"] and user.get("last_name") == u["last_name"],
+				expected=full_name, actual=actual_name or "Not set",
+			)
+
+			actual_profile = user.get("role_profile_name", "") or ""
+			self.check(
+				section, f"{email} - has Role Profile '{profile_name}'",
+				actual_profile == profile_name,
+				expected=profile_name, actual=actual_profile or "Not set",
+			)
+
+	# Accounting Masters ─
 
 	def check_accounting_masters(self):
 		section = "Chart of Accounts"
@@ -506,18 +627,26 @@ class Day1Checker(BaseChecker):
 			"Account",
 			filters={"company": COMPANY_NAME},
 			fields=["name", "account_name"],
-			limit_page_length=500,
+			limit_page_length=0,
 		)
 		account_names = [a.get("account_name", "") for a in all_accounts]
 		account_full_names = [a.get("name", "") for a in all_accounts]
 
 		for acct in required_accounts:
-			found = (
-				acct in account_names
-				or f"{acct} - {COMPANY_ABBR}" in account_full_names
-				or any(acct.lower() in n.lower() for n in account_full_names)
-			)
+			match = ""
+			norm_acct = normalize(acct)
+			for a in all_accounts:
+				if normalize(a.get("account_name", "")) == norm_acct or normalize(a.get("name", "")) == normalize(f"{acct} - {COMPANY_ABBR}"):
+					match = a.get("name", "")
+					break
+			if not match:
+				for a in all_accounts:
+					if norm_acct in normalize(a.get("name", "")):
+						match = a.get("name", "")
+						break
 			self.check(
-				section, f"Account '{acct}' exists", found,
-				message="" if found else f"You haven't created account '{acct}'. Go to Chart of Accounts and add it under the appropriate parent group.",
+				section, f"Account '{acct}' exists", bool(match),
+				expected=f"{acct} - {COMPANY_ABBR}",
+				actual=match or "Not found",
+				message="" if match else f"Account '{acct}' not found. Go to Chart of Accounts and add it.",
 			)

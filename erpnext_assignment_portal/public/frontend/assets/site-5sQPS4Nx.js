@@ -1,0 +1,2 @@
+import{z as r,A as u,k as a}from"./index-_nx7wBD4.js";const l=r("assignment-portal-site",()=>{const t=u({doctype:"ERPNext Site",fields:["name","site_url","site_username","connection_status"],cache:"StudentSite",auto:!0}),s=a(()=>{var e;return((e=t.data)==null?void 0:e[0])||null}),o=a(()=>!!s.value),n=a(()=>{var e;return((e=s.value)==null?void 0:e.name)||""});function i(){t.reload()}return{sites:t,site:s,hasSite:o,siteName:n,reload:i}});export{l as u};
+//# sourceMappingURL=site-5sQPS4Nx.js.map

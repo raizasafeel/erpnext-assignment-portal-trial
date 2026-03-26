@@ -1,142 +1,198 @@
 <template>
   <AppLayout>
-    <div class="p-8 max-w-4xl">
-      <div class="flex items-center justify-between mb-6">
+    <div class="p-6 sm:p-8 w-full">
+      <div class="flex items-start justify-between gap-4 mb-8">
         <div>
           <h2 class="text-2xl font-bold text-ink-gray-9">Day {{ dayNum }}</h2>
-          <p class="text-ink-gray-5">{{ dayInfo.desc }}</p>
+          <p class="mt-1 text-base text-ink-gray-5">{{ dayInfo.desc }}</p>
         </div>
         <Button
+          v-if="siteStore.hasSite"
           variant="solid"
           :loading="running"
-          :disabled="!selectedSite"
           @click="runChecks"
         >
           {{ running ? "Checking..." : "Run Checks" }}
         </Button>
       </div>
 
-      <div v-if="sites.data?.length" class="mb-6">
-        <label class="block text-sm font-medium text-ink-gray-7 mb-1">Select your ERPNext site</label>
-        <select
-          v-model="selectedSite"
-          class="w-full max-w-md border border-outline-gray-2 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-        >
-          <option value="">Choose a site...</option>
-          <option v-for="site in sites.data" :key="site.name" :value="site.name">
-            {{ site.site_url }} ({{ site.site_username }})
-          </option>
-        </select>
-      </div>
-      <div v-else class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p class="text-yellow-800 text-sm">
+      <div v-if="!siteStore.hasSite" class="mb-8">
+        <Alert type="warning">
           No ERPNext site connected yet.
-          <router-link to="/setup" class="underline font-medium">Set up your site first.</router-link>
-        </p>
+          <router-link to="/setup" class="underline font-medium ml-1">Set up your site first.</router-link>
+        </Alert>
       </div>
 
-      <div v-if="error" class="mb-6 p-5 bg-red-50 border border-red-200 rounded-lg">
-        <div class="flex items-start gap-3">
-          <XCircle class="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-          <div>
-            <p class="text-red-800 font-medium">{{ error }}</p>
-            <router-link to="/setup" class="text-sm text-red-600 underline hover:text-red-800 mt-2 inline-block">
-              Go to Site Setup
-            </router-link>
-          </div>
+      <Alert v-if="error" type="error" class="mb-8">
+        <div>
+          <p class="font-medium">{{ error }}</p>
+          <router-link to="/setup" class="text-sm underline mt-1 inline-block">
+            Go to Site Setup
+          </router-link>
         </div>
-      </div>
+      </Alert>
 
-      <div v-if="results" class="mb-6">
-        <div class="p-5 bg-surface-white rounded-lg border">
-          <div class="flex items-center justify-between mb-3">
+      <div v-if="results" class="space-y-6">
+        <div class="p-5 rounded-lg border border-outline-gray-2 bg-surface-white">
+          <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-3">
               <h3 class="text-lg font-semibold text-ink-gray-9">Results</h3>
-              <span
-                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-semibold"
-                :class="results.percentage === 100 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+              <Badge
+                :theme="results.percentage === 100 ? 'green' : 'red'"
+                size="md"
               >
                 {{ results.percentage === 100 ? "Passed" : "Failed" }}
-              </span>
+              </Badge>
             </div>
-            <span
-              class="text-xl font-bold"
-              :class="scoreColor"
-            >
+            <span class="text-xl font-bold" :class="scoreColor">
               {{ results.passed }}/{{ results.total }} ({{ results.percentage }}%)
             </span>
           </div>
-          <div class="w-full bg-gray-100 rounded-full h-2.5">
-            <div
-              class="h-2.5 rounded-full transition-all duration-500"
-              :class="barColor"
-              :style="{ width: `${results.percentage}%` }"
-            />
+          <Progress :value="results.percentage" size="md" />
+        </div>
+
+        <div class="space-y-3">
+          <div
+            v-for="section in sectionList"
+            :key="section.name"
+            class="rounded-lg border border-outline-gray-2 bg-surface-white overflow-hidden"
+          >
+            <button
+              class="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-gray-2 transition-colors"
+              @click="toggleSection(section.name)"
+            >
+              <div class="flex items-center gap-2.5">
+                <CheckCircle2
+                  v-if="section.passed === section.total"
+                  class="w-5 h-5 text-green-600"
+                />
+                <XCircle v-else class="w-5 h-5 text-red-600" />
+                <span class="font-medium text-ink-gray-9">{{ section.name }}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-sm text-ink-gray-5">{{ section.passed }}/{{ section.total }}</span>
+                <ChevronDown
+                  class="w-4 h-4 text-ink-gray-4 transition-transform"
+                  :class="{ 'rotate-180': openSections[section.name] }"
+                />
+              </div>
+            </button>
+
+            <div v-if="openSections[section.name]" class="border-t border-outline-gray-1">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-surface-gray-2 text-ink-gray-5">
+                    <th class="px-4 py-2 text-left w-8"></th>
+                    <th class="px-4 py-2 text-left">Check</th>
+                    <th class="px-4 py-2 text-left w-36">Expected</th>
+                    <th class="px-4 py-2 text-left w-36">Actual</th>
+                    <th class="px-4 py-2 text-left w-48">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(check, idx) in section.checks"
+                    :key="idx"
+                    :class="check.status === 'Fail' ? 'bg-red-50 dark:bg-red-900/10' : ''"
+                    class="border-t border-outline-gray-1"
+                  >
+                    <td class="px-4 py-2.5 text-center">
+                      <CheckCircle2 v-if="check.status === 'Pass'" class="w-4 h-4 text-green-600" />
+                      <XCircle v-else class="w-4 h-4 text-red-600" />
+                    </td>
+                    <td class="px-4 py-2.5 text-ink-gray-9">{{ check.check }}</td>
+                    <td class="px-4 py-2.5 text-ink-gray-5">{{ check.expected || "—" }}</td>
+                    <td class="px-4 py-2.5" :class="check.status === 'Fail' ? 'text-red-700 font-medium' : 'text-ink-gray-5'">
+                      {{ check.actual || "—" }}
+                    </td>
+                    <td class="px-4 py-2.5 text-ink-gray-4">{{ check.message || "" }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
 
-      <div v-if="results" class="space-y-3">
-        <div
-          v-for="section in sectionList"
-          :key="section.name"
-          class="bg-surface-white rounded-lg border overflow-hidden"
-        >
-          <button
-            class="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-gray-2 transition-colors"
-            @click="toggleSection(section.name)"
+      <div v-if="pastAttempts.length" class="mt-10">
+        <h3 class="text-lg font-semibold text-ink-gray-9 mb-4">
+          Past Attempts ({{ pastAttempts.length }})
+        </h3>
+        <div class="space-y-2">
+          <div
+            v-for="(attempt, idx) in pastAttempts"
+            :key="attempt.name"
+            class="rounded-lg border border-outline-gray-2 bg-surface-white overflow-hidden"
           >
-            <div class="flex items-center gap-2.5">
-              <CheckCircle2
-                v-if="section.passed === section.total"
-                class="w-5 h-5 text-green-500"
-              />
-              <XCircle v-else class="w-5 h-5 text-red-500" />
-              <span class="font-medium text-ink-gray-9">{{ section.name }}</span>
-            </div>
-            <div class="flex items-center gap-3">
-              <span class="text-sm text-ink-gray-5">{{ section.passed }}/{{ section.total }}</span>
-              <ChevronDown
-                class="w-4 h-4 text-ink-gray-4 transition-transform"
-                :class="{ 'rotate-180': openSections[section.name] }"
-              />
-            </div>
-          </button>
+            <button
+              class="w-full flex items-center justify-between p-3 hover:bg-surface-gray-2 transition-colors"
+              @click="toggleAttempt(attempt.name)"
+            >
+              <div class="flex items-center gap-3">
+                <CheckCircle2
+                  v-if="attempt.percentage === 100"
+                  class="w-4 h-4 text-green-600"
+                />
+                <XCircle v-else class="w-4 h-4 text-red-600" />
+                <span class="text-sm font-medium text-ink-gray-7">
+                  #{{ pastAttempts.length - idx }}
+                </span>
+                <span class="text-sm text-ink-gray-9">
+                  {{ attempt.passed_checks }}/{{ attempt.total_checks }}
+                  ({{ attempt.percentage }}%)
+                </span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xs text-ink-gray-4">
+                  {{ formatDate(attempt.checked_at) }}
+                </span>
+                <ChevronDown
+                  class="w-3.5 h-3.5 text-ink-gray-4 transition-transform"
+                  :class="{ 'rotate-180': openAttempts[attempt.name] }"
+                />
+              </div>
+            </button>
 
-          <div v-if="openSections[section.name]" class="border-t">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="bg-surface-gray-2 text-ink-gray-5">
-                  <th class="px-4 py-2 text-left w-8"></th>
-                  <th class="px-4 py-2 text-left">Check</th>
-                  <th class="px-4 py-2 text-left w-36">Expected</th>
-                  <th class="px-4 py-2 text-left w-36">Actual</th>
-                  <th class="px-4 py-2 text-left w-48">Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(check, idx) in section.checks"
-                  :key="idx"
-                  :class="check.status === 'Fail' ? 'bg-red-50' : ''"
-                  class="border-t"
-                >
-                  <td class="px-4 py-2.5 text-center">
+            <div v-if="openAttempts[attempt.name]" class="border-t border-outline-gray-1">
+              <div
+                v-for="section in parsedSections(attempt)"
+                :key="section.name"
+                class="border-b border-outline-gray-1 last:border-b-0"
+              >
+                <div class="flex items-center justify-between px-4 py-2.5 bg-surface-gray-2 text-sm">
+                  <div class="flex items-center gap-2">
                     <CheckCircle2
-                      v-if="check.status === 'Pass'"
-                      class="w-4 h-4 text-green-500"
+                      v-if="section.passed === section.total"
+                      class="w-4 h-4 text-green-600"
                     />
-                    <XCircle v-else class="w-4 h-4 text-red-500" />
-                  </td>
-                  <td class="px-4 py-2.5 text-ink-gray-9">{{ check.check }}</td>
-                  <td class="px-4 py-2.5 text-ink-gray-5">{{ check.expected || "—" }}</td>
-                  <td class="px-4 py-2.5" :class="check.status === 'Fail' ? 'text-red-700 font-medium' : 'text-ink-gray-5'">
-                    {{ check.actual || "—" }}
-                  </td>
-                  <td class="px-4 py-2.5 text-ink-gray-4">{{ check.message || "" }}</td>
-                </tr>
-              </tbody>
-            </table>
+                    <XCircle v-else class="w-4 h-4 text-red-600" />
+                    <span class="font-medium text-ink-gray-7">{{ section.name }}</span>
+                  </div>
+                  <span class="text-ink-gray-5">{{ section.passed }}/{{ section.total }}</span>
+                </div>
+                <table class="w-full text-sm">
+                  <tbody>
+                    <tr
+                      v-for="(check, cidx) in section.checks"
+                      :key="cidx"
+                      :class="check.status === 'Fail' ? 'bg-red-50 dark:bg-red-900/10' : ''"
+                      class="border-t border-outline-gray-1"
+                    >
+                      <td class="px-4 py-2 w-6 text-center">
+                        <CheckCircle2 v-if="check.status === 'Pass'" class="w-4 h-4 text-green-600" />
+                        <XCircle v-else class="w-4 h-4 text-red-600" />
+                      </td>
+                      <td class="py-2 text-ink-gray-9">{{ check.check }}</td>
+                      <td class="px-4 py-2 text-right text-ink-gray-5 text-xs">
+                        <template v-if="check.status === 'Fail'">
+                          Expected: {{ check.expected || "—" }} | Got: {{ check.actual || "—" }}
+                        </template>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -147,11 +203,13 @@
 <script setup>
 import { ref, computed, reactive, watch } from "vue"
 import { useRoute } from "vue-router"
-import { createListResource, call } from "frappe-ui"
+import { createResource, call, Progress } from "frappe-ui"
 import { CheckCircle2, XCircle, ChevronDown } from "lucide-vue-next"
 import AppLayout from "@/components/AppLayout.vue"
+import { useSiteStore } from "@/stores/site"
 
 const route = useRoute()
+const siteStore = useSiteStore()
 const dayNum = computed(() => route.params.day)
 
 const dayInfoMap = {
@@ -162,30 +220,23 @@ const dayInfoMap = {
 
 const dayInfo = computed(() => dayInfoMap[dayNum.value] || { desc: "" })
 
-const sites = createListResource({
-  doctype: "ERPNext Site",
-  fields: ["name", "site_url", "site_username"],
+const myResults = createResource({
+  url: "erpnext_assignment_portal.api.get_my_results",
+  cache: "MyResults",
   auto: true,
 })
 
-const selectedSite = ref("")
+const pastAttempts = computed(() => {
+  if (!myResults.data) return []
+  return myResults.data.filter((r) => r.day === `Day ${dayNum.value}`)
+})
+
 const running = ref(false)
 const error = ref("")
 const results = ref(null)
 const openSections = reactive({})
+const openAttempts = reactive({})
 
-// Auto-select first site
-watch(
-  () => sites.data,
-  (data) => {
-    if (data?.length && !selectedSite.value) {
-      selectedSite.value = data[0].name
-    }
-  },
-  { immediate: true }
-)
-
-// Clear results when switching days
 watch(dayNum, () => {
   results.value = null
   error.value = ""
@@ -215,27 +266,45 @@ const scoreColor = computed(() => {
   return "text-red-600"
 })
 
-const barColor = computed(() => {
-  if (!results.value) return "bg-gray-300"
-  const p = results.value.percentage
-  if (p >= 80) return "bg-green-500"
-  if (p >= 50) return "bg-yellow-500"
-  return "bg-red-500"
-})
-
 function toggleSection(name) {
   openSections[name] = !openSections[name]
 }
 
+function toggleAttempt(name) {
+  openAttempts[name] = !openAttempts[name]
+}
+
+function parsedSections(result) {
+  if (!result?.result_json) return []
+  try {
+    const data = JSON.parse(result.result_json)
+    if (!data?.results) return []
+    const map = {}
+    const order = []
+    for (const c of data.results) {
+      if (!map[c.section]) {
+        map[c.section] = { name: c.section, checks: [], passed: 0, total: 0 }
+        order.push(c.section)
+      }
+      map[c.section].checks.push(c)
+      map[c.section].total++
+      if (c.status === "Pass") map[c.section].passed++
+    }
+    return order.map((s) => map[s])
+  } catch {
+    return []
+  }
+}
+
 async function runChecks() {
-  if (!selectedSite.value) return
+  if (!siteStore.siteName) return
   running.value = true
   error.value = ""
   results.value = null
 
   try {
     const data = await call("erpnext_assignment_portal.api.run_check", {
-      site_name: selectedSite.value,
+      site_name: siteStore.siteName,
       day: `Day ${dayNum.value}`,
     })
 
@@ -245,8 +314,8 @@ async function runChecks() {
     }
 
     results.value = data
+    myResults.reload()
 
-    // Auto-expand failed sections
     for (const section of sectionList.value) {
       if (section.passed < section.total) {
         openSections[section.name] = true
@@ -257,5 +326,10 @@ async function runChecks() {
   } finally {
     running.value = false
   }
+}
+
+function formatDate(dt) {
+  if (!dt) return ""
+  return new Date(dt).toLocaleString()
 }
 </script>

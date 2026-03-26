@@ -33,6 +33,11 @@ const routes = [
 		component: () => import("@/pages/StudentDetail.vue"),
 		meta: { staffOnly: true },
 	},
+	{
+		path: "/unauthorized",
+		name: "Unauthorized",
+		component: () => import("@/pages/Unauthorized.vue"),
+	},
 ]
 
 const router = createRouter({
@@ -50,15 +55,29 @@ router.beforeEach(async (to, _from, next) => {
 		// ignore — auth check is cookie-based below
 	}
 
+	try {
+		await users.portalStatus.promise
+	} catch {
+		// ignore
+	}
+
 	if (!session.isLoggedIn) {
 		window.location.href = `/login?redirect-to=/assignment-portal${to.fullPath}`
 		return
 	}
 
+	if (to.name === "Unauthorized") {
+		return next()
+	}
+
+	if (!users.isAdmin && !users.isStudent) {
+		return next("/unauthorized")
+	}
+
 	if (to.meta.staffOnly && !users.isAdmin) {
 		return next("/")
 	}
-	if (to.meta.studentOnly && users.isAdmin) {
+	if (to.meta.studentOnly && !users.isStudent) {
 		return next("/dashboard")
 	}
 

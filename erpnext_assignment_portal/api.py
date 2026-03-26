@@ -19,6 +19,31 @@ def get_csrf_token():
 	return token
 
 
+@frappe.whitelist()
+def get_portal_status() -> dict:
+	"""Return portal readiness and the current user's access level."""
+	course = frappe.db.get_single_value("Assignment Portal Settings", "course")
+	user = frappe.session.user
+	roles = frappe.get_roles(user)
+
+	is_staff = bool(set(roles) & set(STAFF_ROLES))
+	is_student = "LMS Student" in roles
+
+	enrolled = False
+	if course and is_student:
+		enrolled = frappe.db.exists(
+			"LMS Enrollment",
+			{"course": course, "member": user, "member_type": "Student"},
+		)
+
+	return {
+		"course_configured": bool(course),
+		"is_staff": is_staff,
+		"is_student": is_student,
+		"enrolled": bool(enrolled),
+	}
+
+
 @frappe.whitelist(methods=["POST"])
 @rate_limit(limit=10, seconds=60)
 def create_site(site_url: str, site_username: str, site_password: str) -> dict:
@@ -121,20 +146,9 @@ def run_check(site_name: str, day: str) -> dict:
 
 
 def _save_assignment_result(site_name: str, day: str, result: dict):
-	student = frappe.session.user
-
-	existing = frappe.db.get_value(
-		"ERPNext Assignment Result",
-		{"student": student, "day": day},
-		"name",
-	)
-	if existing:
-		doc = frappe.get_doc("ERPNext Assignment Result", existing)
-	else:
-		doc = frappe.new_doc("ERPNext Assignment Result")
-		doc.student = student
-		doc.day = day
-
+	doc = frappe.new_doc("ERPNext Assignment Result")
+	doc.student = frappe.session.user
+	doc.day = day
 	doc.site = site_name
 	doc.total_checks = result["total"]
 	doc.passed_checks = result["passed"]
@@ -151,7 +165,8 @@ def get_my_results() -> list[dict]:
 		"ERPNext Assignment Result",
 		filters={"student": frappe.session.user},
 		fields=["name", "day", "passed_checks", "total_checks", "percentage", "checked_at", "result_json"],
-		order_by="day asc",
+		order_by="day asc, checked_at desc",
+		limit_page_length=0,
 	)
 
 
@@ -162,7 +177,8 @@ def get_student_results(student: str) -> list[dict]:
 		"ERPNext Assignment Result",
 		filters={"student": student},
 		fields=["name", "day", "passed_checks", "total_checks", "percentage", "checked_at", "result_json"],
-		order_by="day asc",
+		order_by="day asc, checked_at desc",
+		limit_page_length=0,
 	)
 
 
@@ -174,7 +190,7 @@ def get_dashboard() -> dict:
 	if not student_emails:
 		return {"total_students": 0, "with_submissions": 0, "overall_average": 0, "submissions": []}
 
-	results = frappe.get_all(
+	all_results = frappe.get_all(
 		"ERPNext Assignment Result",
 		filters={"student": ["in", student_emails]},
 		fields=["student", "day", "percentage", "checked_at"],
@@ -189,34 +205,40 @@ def get_dashboard() -> dict:
 	)
 	user_map = {u.name: u for u in users}
 
+	# Best score per student per day
+	best_scores: dict[tuple[str, str], float] = {}
 	user_data: dict[str, dict] = {}
-	all_percentages = []
 
-	for r in results:
-		all_percentages.append(r.percentage or 0)
+	for r in all_results:
+		key = (r.student, r.day)
+		pct = r.percentage or 0
+
+		if key not in best_scores or pct > best_scores[key]:
+			best_scores[key] = pct
+
 		if r.student not in user_data:
 			u = user_map.get(r.student, {})
 			user_data[r.student] = {
 				"student": r.student,
 				"full_name": u.get("full_name") or r.student,
 				"user_image": u.get("user_image"),
-				"submissions": 0,
-				"total_percentage": 0,
-				"days_completed": [],
+				"attempts": 0,
+				"days_completed": set(),
 				"last_checked": None,
 			}
+
 		entry = user_data[r.student]
-		entry["submissions"] += 1
-		entry["total_percentage"] += r.percentage or 0
-		entry["days_completed"].append(r.day)
+		entry["attempts"] += 1
+		entry["days_completed"].add(r.day)
 		if not entry["last_checked"] or str(r.checked_at) > str(entry["last_checked"]):
 			entry["last_checked"] = r.checked_at
 
 	submission_list = []
 	for data in user_data.values():
-		data["average_percentage"] = round(data["total_percentage"] / data["submissions"], 1) if data["submissions"] else 0
-		del data["total_percentage"]
-		data["days_completed"] = sorted(set(data["days_completed"]))
+		student_best = [best_scores[(data["student"], day)] for day in data["days_completed"]]
+		data["average_percentage"] = round(sum(student_best) / len(student_best), 1) if student_best else 0
+		data["days_completed"] = sorted(data["days_completed"])
+		data["submissions"] = len(data["days_completed"])
 		submission_list.append(data)
 
 	for email in student_emails:
@@ -235,7 +257,8 @@ def get_dashboard() -> dict:
 	submission_list.sort(key=lambda x: (-x["submissions"], -x["average_percentage"]))
 
 	with_subs = sum(1 for s in submission_list if s["submissions"] > 0)
-	overall_avg = round(sum(all_percentages) / len(all_percentages), 1) if all_percentages else 0
+	all_best = list(best_scores.values())
+	overall_avg = round(sum(all_best) / len(all_best), 1) if all_best else 0
 
 	return {
 		"total_students": len(student_emails),

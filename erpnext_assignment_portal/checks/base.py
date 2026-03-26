@@ -1,6 +1,21 @@
 from frappe.frappeclient import FrappeClient
 
 
+import re
+
+
+def normalize(s: str) -> str:
+	return re.sub(r"[^a-z0-9\s]", "", s.lower()).strip()
+
+
+def match(actual: str, expected: str) -> bool:
+	return normalize(str(actual)) == normalize(str(expected))
+
+
+def contains(haystack: str, needle: str) -> bool:
+	return normalize(str(needle)) in normalize(str(haystack))
+
+
 class BaseChecker:
 	def __init__(self, site_url: str, username: str, password: str):
 		self.client = FrappeClient(site_url, username, password)

@@ -14,6 +14,12 @@ export const usersStore = defineStore("assignment-portal-users", () => {
 		},
 	})
 
+	let portalStatus = createResource({
+		url: "erpnext_assignment_portal.api.get_portal_status",
+		cache: "PortalStatus",
+		auto: true,
+	})
+
 	const isAdmin = computed(() => {
 		const d = userResource.data
 		return d?.is_moderator || d?.is_instructor || d?.is_evaluator || false
@@ -25,6 +31,7 @@ export const usersStore = defineStore("assignment-portal-users", () => {
 
 	return {
 		userResource,
+		portalStatus,
 		isAdmin,
 		isStudent,
 	}

@@ -1,14 +1,36 @@
 <template>
 	<AppLayout>
-		<div class="p-8 max-w-5xl">
-			<h2 class="text-2xl font-bold text-ink-gray-9 mb-1">
+		<div class="p-6 sm:p-8 w-full">
+			<h2 class="text-2xl font-bold text-ink-gray-9">
 				Dashboard
 			</h2>
-			<p class="text-ink-gray-5 mb-8">
+			<p class="mt-1 text-base text-ink-gray-5 mb-8">
 				Overview of student submissions.
 			</p>
 
-			<div v-if="dashboard.loading" class="text-sm text-ink-gray-5">
+			<div
+				v-if="!portalStatus.data?.course_configured"
+				class="p-8 bg-surface-white rounded-lg border border-dashed border-outline-gray-2 text-center"
+			>
+				<h3 class="text-lg font-semibold text-ink-gray-9 mb-2">
+					No course configured
+				</h3>
+				<p class="text-ink-gray-5 mb-4">
+					Please select a course in Assignment Portal Settings to
+					get started.
+				</p>
+				<a
+					href="/app/assignment-portal-settings"
+					class="text-sm font-medium text-blue-600 hover:text-blue-800"
+				>
+					Open Settings &rarr;
+				</a>
+			</div>
+
+			<div
+				v-else-if="dashboard.loading"
+				class="text-sm text-ink-gray-5"
+			>
 				Loading...
 			</div>
 
@@ -52,12 +74,12 @@
 					</div>
 				</div>
 
-				<div class="mb-4">
-					<input
+				<div class="mb-6">
+					<FormControl
 						v-model="searchQuery"
 						type="text"
 						placeholder="Search by name or email..."
-						class="w-full max-w-md border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
+						class="max-w-sm"
 					/>
 				</div>
 
@@ -207,10 +229,12 @@
 import { ref, computed } from "vue"
 import { useRouter } from "vue-router"
 import { createResource } from "frappe-ui"
+import { usersStore } from "@/stores/user"
 import AppLayout from "@/components/AppLayout.vue"
 
 const router = useRouter()
 const searchQuery = ref("")
+const { portalStatus } = usersStore()
 
 const dashboard = createResource({
 	url: "erpnext_assignment_portal.api.get_dashboard",

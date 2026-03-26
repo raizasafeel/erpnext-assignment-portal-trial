@@ -71,7 +71,7 @@ import UserDropdown from "@/components/Sidebar/UserDropdown.vue"
 import SidebarLink from "@/components/Sidebar/SidebarLink.vue"
 
 const sidebarStore = useSidebar()
-const { isAdmin } = storeToRefs(usersStore())
+const { isAdmin, isStudent } = storeToRefs(usersStore())
 
 const toggleSidebar = () => {
 	sidebarStore.isSidebarCollapsed = !sidebarStore.isSidebarCollapsed
@@ -81,57 +81,64 @@ const toggleSidebar = () => {
 	)
 }
 
-const sidebarLinks = computed(() => {
-	if (isAdmin.value) {
-		return [
+const staffLinks = [
+	{
+		label: "Staff",
+		items: [
 			{
-				label: "",
-				items: [
-					{
-						to: "/dashboard",
-						label: "Dashboard",
-						icon: "LayoutDashboard",
-					},
-				],
+				to: "/dashboard",
+				label: "Dashboard",
+				icon: "LayoutDashboard",
 			},
-		]
+		],
+	},
+]
+
+const studentLinks = [
+	{
+		label: "",
+		items: [
+			{
+				to: "/",
+				label: "My Progress",
+				icon: "LayoutDashboard",
+			},
+			{
+				to: "/setup",
+				label: "Site Setup",
+				icon: "Settings",
+			},
+		],
+	},
+	{
+		label: "Assignments",
+		items: [
+			{
+				to: "/day/1",
+				label: "Day 1 — Master Data",
+				icon: "ClipboardList",
+			},
+			{
+				to: "/day/2",
+				label: "Day 2 — Sales & Purchase",
+				icon: "ShoppingCart",
+			},
+			{
+				to: "/day/3",
+				label: "Day 3 — Accounting",
+				icon: "Calculator",
+			},
+		],
+	},
+]
+
+const sidebarLinks = computed(() => {
+	if (isAdmin.value && isStudent.value) {
+		return [...staffLinks, ...studentLinks]
 	}
-	return [
-		{
-			label: "",
-			items: [
-				{
-					to: "/",
-					label: "Dashboard",
-					icon: "LayoutDashboard",
-				},
-				{
-					to: "/setup",
-					label: "Site Setup",
-					icon: "Settings",
-				},
-			],
-		},
-		{
-			label: "Assignments",
-			items: [
-				{
-					to: "/day/1",
-					label: "Day 1 — Master Data",
-					icon: "ClipboardList",
-				},
-				{
-					to: "/day/2",
-					label: "Day 2 — Sales & Purchase",
-					icon: "ShoppingCart",
-				},
-				{
-					to: "/day/3",
-					label: "Day 3 — Accounting",
-					icon: "Calculator",
-				},
-			],
-		},
-	]
+	if (isAdmin.value) {
+		return staffLinks
+	}
+	return studentLinks
 })
 </script>
